@@ -5,39 +5,161 @@ from numpy import add, cross, divide, dot, subtract
 from numpy import float64, int64
 
 
-def toPoint(v):
-	if type(v) in (tuple, list):
-		return Point(v)
-	else:
-		return v
-
-def isNumber(n):
-	return type(n) in (int, int64, float64, float) or str(n).isnumeric()
-
-
 ### OBJECTS
+
+
+class Color:
+
+	def __init__(self, r=0, g=0, b=0):
+		self.rgb = r, g, b
+
+	def __repr__(self):
+		return "Color({})".format(",".join(map(repr, self.rgb)))
+
+	def value(self):
+		return self.rgb
+
+
+class COLORS:
+	BLACK = Color()
+	BG_COLOR = BLACK
+	RED = Color(r=255)
+	GREEN = Color(g=255)
+	BLUE = Color(b=255)
+	WHITE = Color(r=255, g=255, b=255)
+
+
+class Vector:
+
+	def __init__(self, x, *args):
+		def check(n):
+			return n if isnumber(n) else 0
+
+		if isnumber(x):
+			y, z = args[:2]
+		else:
+			x, y, z = x
+
+		self.x = check(x)
+		self.y = check(y)
+		self.z = check(z)
+
+	def __repr__(self):
+		return "Point({}, {}, {})".format(
+				repr(self.x),
+				repr(self.y),
+				repr(self.z)
+		)
+
+	def __str__(self):
+		return "P{}".format(repr(self.vector()))
+
+	def __mul__(self, v):
+		if iscoll(v):
+			v = Vector(v[0], v[1], v[2])
+		elif isnumber(v):
+			# multiply vector by scalar
+			return Vector(dot(self.vector(), v))
+
+		# multiply vector by vector v
+		return self.dot(v)
+
+	def __truediv__(self, v):
+		if iscoll(v):
+			v = Vector(v[0], v[1], v[2])
+		elif isnumber(v):
+			return Vector(divide(self.vector(), v))
+
+		return divide(self.vector(), v.vector())
+
+	def __add__(self, v):
+		if iscoll(v):
+			v = Vector(v[0], v[1], v[2])
+		return Vector(add(self.vector(), v.vector()))
+
+	def __sub__(self, v):
+		if iscoll(v):
+			v = Vector(v[0], v[1], v[2])
+		return Vector(subtract(self.vector(), v.vector()))
+
+	def vector(self):
+		'''
+		:return: a tuple made up of x, y and z coordinates.
+		-> (x, y, z)
+		'''
+		return self.x, self.y, self.z
+
+	def scale(self, v):
+		'''
+		:param v: a scalar used to scale the vector
+		:return: a new scaled vector
+		'''
+		if not isnumber(v):
+			return None
+		return self.__mul__(v)
+
+	def dot(self, v):
+		'''
+		:param v: is a Vector object
+		:return: the scalar product of two Vectors => self • v
+		'''
+		if type(v) is not Vector:
+			return None
+		return dot(self.vector(), v.vector())
+
+	def cross(self, v):
+		if iscoll(v):
+			v = Vector(v)
+		return Vector(cross(self.vector(), v.vector()))
+
+	def length(self) -> float:
+		'''
+		:return: the length of a Vector
+		Calculates the length as follows:
+		-> sqrt(<v,v>) = sqrt(sum(x^2 + y^2 + z^2))
+		'''
+		return sqrt(self * self)
+
+	def vectortopoint(self, p):
+		return p - self.vector()
+
+	def normalized(self):
+		'''
+		:return: the normalized Vector by dividing the Vector by its length
+		'''
+		return self / self.length()
 
 
 class ObjectAbstract(ABC):
 
-	def __init__(self):
-		self.vectorToPoint = lambda a, b: b - a
+	def __init__(self, color=COLORS.WHITE):
+		# self.vectorToPoint = lambda a, b: b - a
+		self.color = color
+		pass
 
 	@abstractmethod
 	def intersectionParameter(self, ray):
 		pass
 
 	@abstractmethod
-	def normalAt(self, p):
+	def normalAt(self, p) -> Vector:
+		'''
+		:param p: any point from which the normal of the Object is calculated
+		:return: a new normal vector object at the given point
+		'''
 		pass
+
+	def colorAt(self, ray):
+		# TODO: calculate shaded color
+		return self.color
 
 
 class Ray:
 
 	def __init__(self, origin, direction):
 		def check(v):
-			if type(v) in (tuple, list):
-				return Point(v)
+			if iscoll(v):
+				return Vector(v)
 			else:
 				return v
 
@@ -48,17 +170,18 @@ class Ray:
 		return "Ray({}, {})".format(repr(self.origin), repr(self.direction))
 
 	def __str__(self):
-		return
+		return "R({}, {})".format(str(self.origin), str(self.direction))
 
-	def pointAtParameter(self, t):
-		if not str(t).isnumeric(): return None
+	def pointAtParameter(self, t) -> Vector:
+		if not isnumber(t):
+			return None
 		return self.origin + self.direction * t
 
 
 class Sphere(ObjectAbstract):
 
-	def __init__(self, center, radius):
-		super().__init__()
+	def __init__(self, center, radius, color):
+		super().__init__(color)
 		self.center = center  # point
 		self.radius = radius  # scalar
 
@@ -75,8 +198,8 @@ class Sphere(ObjectAbstract):
 		else:
 			return v - sqrt(discriminant)
 
-	def normalAt(self, p):
-		return self.vectorToPoint(self.center, p).normalized()
+	def normalAt(self, p) -> Vector:
+		return self.center.vectortopoint(p).normalized()
 
 
 class Plane(ObjectAbstract):
@@ -98,7 +221,7 @@ class Plane(ObjectAbstract):
 		else:
 			return None
 
-	def normalAt(self, p):
+	def normalAt(self, p) -> Vector:
 		return self.normal
 
 
@@ -132,84 +255,19 @@ class Triangle(ObjectAbstract):
 			return None
 
 	def normalAt(self, p):
-		return Point(cross(self.u, self.v)).normalized()
-
-
-class Point:
-
-	def __init__(self, x, *args):
-		def check(n):
-			return n if isNumber(n) else 0
-
-		if isNumber(x):
-			y, z = args[:2]
-		else:
-			x, y, z = x
-
-		self.x = check(x)
-		self.y = check(y)
-		self.z = check(z)
-
-	def vector(self):
-		return self.x, self.y, self.z
-
-	def scale(self, v):
-		return
-
-	def __repr__(self):
-		return "Point({}, {}, {})".format(
-				repr(self.x),
-				repr(self.y),
-				repr(self.z)
-		)
-
-	def __str__(self):
-		return "P{}".format(repr(self.vector()))
-
-	def __mul__(self, v):
-		if type(v) in (tuple, list):
-			v = Point(v[0], v[1], v[2])
-		elif type(v) in (int, float):
-			# multiply vector by scalar
-			return Point(dot(self.vector(), v))
-
-		# multiply vector by vector v
-		return self.dot(v)
-
-	def __truediv__(self, v):
-		if type(v) in (tuple, list):
-			v = Point(v[0], v[1], v[2])
-		elif isNumber(v):
-			return Point(divide(self.vector(), v))
-
-		return divide(self.vector(), v.vector())
-
-	def __add__(self, v):
-		if type(v) in (tuple, list):
-			v = Point(v[0], v[1], v[2])
-		return Point(add(self.vector(), v.vector()))
-
-	def __sub__(self, v):
-		if type(v) in (tuple, list):
-			v = Point(v[0], v[1], v[2])
-		return Point(subtract(self.vector(), v.vector()))
-
-	def dot(self, v):
-		if type(v) is not Point:
-			return None
-		return dot(self.vector(), v.vector())
-
-	def length(self) -> float:
-		return sqrt(self * self)
-
-	def normalized(self):
-		return self / self.length()
+		return Vector(cross(self.u, self.v)).normalized()
 
 
 class Camera:
 
-	def __init__(self, position, fov, height, aratio):
-		self.position = toPoint(position)
+	def __init__(self, origin, up, focus, fov, height, aratio):
+		self.__args = [origin, up, focus, fov, height, aratio]
+
+		self.f = origin.vectortopoint(focus).normalized()
+		self.s = self.f.cross(up).normalized()
+		self.u = self.s.cross(self.f)
+
+		self.position = topoint(origin)
 		self.fov = fov
 		self.alpha = self.fov / 2
 		self.height = 2 * tan(self.alpha)
@@ -217,7 +275,25 @@ class Camera:
 		self.width = aratio * height
 
 	def __repr__(self):
-		return "Camera({}, {}, {}, {})".format(
-				self.position, self.fov,
-				self.height, self.aratio
-		)
+		return "Camera({})".format(", ".join(map(repr, self.__args)))
+
+	def __str__(self):
+		return "Cam({})".format(", ".join(map(str, self.__args)))
+
+
+#### HELPERS
+
+
+def topoint(v) -> Vector:
+	if iscoll(v):
+		return Vector(v)
+	else:
+		return v
+
+
+def isnumber(n) -> bool:
+	return type(n) in (int, int64, float64, float) or str(n).isnumeric()
+
+
+def iscoll(e) -> bool:
+	return type(e) in (tuple, list)

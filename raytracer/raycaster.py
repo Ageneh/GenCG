@@ -3,7 +3,7 @@ import random
 
 from PIL import Image
 
-from raytracer.objects import COLORS, Ray, Vector
+from raytracer.objects import COLORS, Camera, ObjectAbstract, Ray, Sphere, Vector
 
 
 class RayCaster:
@@ -18,43 +18,38 @@ class RayCaster:
 
 	# TODO: textures
 
-	def __init__(self, wRes, hRes, camera, objects):
+	def __init__(self, resolution=200, camera=None, objects=None):
 		'''
-		:param wRes: width of the output image
-		:param hRes: height of the output image
+		:param resolution: can be a numeric value or collection of numeric values defining the resolution
 		:param camera: the scene camera
 		:param objects: a collection of all object of the scene
 		'''
-		self.objects = objects
-		self.imageWidth = wRes
-		self.imageHeight = hRes
-		self.image = Image.new("RGB", (self.imageWidth, self.imageHeight))
+		self.objects = objects if objects else []
 		self.camera = camera
 
-		self.times = []
-
+		if type(resolution) in (tuple, list):
+			if len(resolution) == 1:
+				resolution = resolution[0], resolution[0]
+		elif str(resolution).isnumeric():
+			resolution = resolution, resolution
+		self.imageWidth, self.imageHeight = resolution
+		self.image = Image.new("RGB", (self.imageWidth, self.imageHeight))
 		self.pixelWidth = self.camera.width / (self.imageWidth - 1)
 		self.pixelHeight = self.camera.height / (self.imageHeight - 1)
-		pass
 
-	def calcRay(self, x, y):
-		# TODO: implement ray calculation based on pixel
+		self.logfile = None
+		self.times = []
 
-		s = self.camera.s
-		u = self.camera.u  # up
-		e = self.camera.position  # eye
-		f = self.camera.f  # focus
-
-		xcomp = s.scale(x * self.pixelWidth - self.imageWidth / 2)
-		ycomp = u.scale(y * self.pixelHeight - self.imageHeight / 2)
-		# ray = Ray(e, f + xcomp + ycomp)  # evtl . mehrere Strahlen pro Pixel
-		return self.rays(e, f, xcomp, ycomp)  # evtl . mehrere Strahlen pro Pixel
+	def add(self, other):
+		if other is Camera:
+			self.camera = other
+		elif isinstance(other, ObjectAbstract):
+			self.objects.append(other)
 
 	def rays(self, e, f, xcomp, ycomp, raycount=1):
-		if raycount == 1:
-			return Ray(e, f + xcomp + ycomp)
+		if raycount == 1: return Ray(e, f + xcomp + ycomp)
 
-		# TODO: multiple rays per pixel
+		# TODO: multiple rays per pixel and average color
 
 		rays = []
 		l = 0.05
@@ -73,15 +68,29 @@ class RayCaster:
 			avg_ray = avg_ray + r
 
 		avg_ray /= raycount
-		return avg_ray
+		return rays, avg_ray
+
+	def calcRay(self, x, y):
+		xcomp = self.camera.s.scale(x * self.pixelWidth - self.camera.width / 2)
+		ycomp = self.camera.u.scale(y * self.pixelHeight - self.camera.height / 2)
+
+		# return self.rays(self.camera.origin, self.camera.f, xcomp, ycomp)  # evtl . mehrere Strahlen pro Pixel
+		return Ray(self.camera.origin, self.camera.f + xcomp + ycomp)  # evtl . mehrere Strahlen pro Pixel
 
 	# TODO: multiprocessed rayscasting
 
 	def castRays(self):
+
+		if not self.camera:
+			raise RuntimeError("Camera not defined yet.")
+
+		self.logfile = open("./logs/log-{}.txt".format(datetime.datetime.now()), "w+", encoding="utf8")
+
 		start = datetime.datetime.now()
 		print("Casting start: {}".format(start))
 
 		for x in range(self.imageWidth):
+			self.logfile.write("x: " + str(x) + "\n")
 			for y in range(self.imageHeight):
 				ray = self.calcRay(x, y)
 				maxdist = float("inf")
@@ -89,19 +98,24 @@ class RayCaster:
 
 				for object in self.objects:
 					hitdist = object.intersectionParameter(ray)
-					if hitdist != 0:
+
+					self.logfile.write("y: " + str(y) + ": " + str(hitdist) + ", " + str(ray) + "\n")
+
+					if hitdist:
 						if hitdist < maxdist:
 							maxdist = hitdist
 							color = object.colorAt(ray)
-					else:
-						print("NO", color.value())
 
 				self.image.putpixel((x, y), color.value())
+
+			self.logfile.write("\n" * 2)
 
 		end = datetime.datetime.now()
 		self.times = [start, end]
 		print("Casting end: {}".format(end))
 		print("Casting time: {}".format(end - start))
+
+		self.logfile.close()
 
 	def export(self):
 		stamp = str(self.times[0])
@@ -110,3 +124,23 @@ class RayCaster:
 				img_str.format(stamp),
 				"JPEG", quality=75)
 		self.image.show()
+
+
+if __name__ == '__main__':
+	ray = Ray(Vector(0, 1, 2), Vector(0, 1, 6))
+	print(ray, "-", ray.pointAtParameter(1), "-", ray.pointAtParameter(2))
+
+	sphere_pos = Vector(0, 20, 550)
+	camera = Camera(
+			origin=Vector(0, 20, -200),
+			up=Vector(0, 1, 0),
+			focus=sphere_pos,
+			fov=45,
+			aratio=10 / 16
+	)
+
+	rc = RayCaster(resolution=100, camera=camera)
+	rc.add(Sphere(sphere_pos, 30, COLORS.GREEN))
+
+	rc.castRays()
+	rc.export()

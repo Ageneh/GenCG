@@ -5,6 +5,10 @@ from numpy import add, cross, divide, dot, subtract
 from numpy import float64, int64
 
 
+def isnumber(n) -> bool:
+	return type(n) in (int, int64, float64, float) or str(n).isnumeric()
+
+
 ### OBJECTS
 
 
@@ -178,10 +182,18 @@ class Ray:
 		return self.origin + self.direction * t
 
 
+class Light(Vector):
+
+	def __init__(self, x, *args, intensity=1.0, color=COLORS.WHITE):
+		super().__init__(x, *args)
+		self.intensity = intensity
+		self.color = color
+
+
 class Sphere(ObjectAbstract):
 
 	def __init__(self, center, radius, color):
-		super().__init__(color)
+		super().__init__(color=color)
 		self.center = center  # point
 		self.radius = radius  # scalar
 
@@ -191,7 +203,7 @@ class Sphere(ObjectAbstract):
 	def intersectionParameter(self, ray):
 		co = self.center - ray.origin
 		v = co.dot(ray.direction)
-		discriminant = v * v - co.dot(co) + self.radius * self.radius
+		discriminant = (v ** 2 - co.dot(co)) + self.radius ** 2
 
 		if discriminant < 0:
 			return None
@@ -260,25 +272,32 @@ class Triangle(ObjectAbstract):
 
 class Camera:
 
-	def __init__(self, origin, up, focus, fov, height, aratio):
-		self.__args = [origin, up, focus, fov, height, aratio]
-
-		self.f = origin.vectortopoint(focus).normalized()
-		self.s = self.f.cross(up).normalized()
-		self.u = self.s.cross(self.f)
-
-		self.position = topoint(origin)
+	def __init__(self, origin=Vector(0, 0, 0), up=Vector(0, 1, 0), focus=Vector(0, 0, 1), fov=45, aratio=10 / 16):
+		self.origin = origin
 		self.fov = fov
+		self.up = up
+		self.focus = focus
+
 		self.alpha = self.fov / 2
 		self.height = 2 * tan(self.alpha)
 		self.aratio = aratio
-		self.width = aratio * height
+		self.width = aratio * self.height
+
+		self.f = self.origin.vectortopoint(focus).normalized()
+		self.s = self.f.cross(up).normalized()
+		self.u = self.s.cross(self.f)
 
 	def __repr__(self):
-		return "Camera({})".format(", ".join(map(repr, self.__args)))
+		# return "Camera({})".format(", ".join(map(repr, self.__args)))
+		return "Camera(origin={}, up={}, focus={}, fov={}, aratio={})".format(
+				self.origin, self.up, self.up, self.focus, self.fov, self.aratio
+		)
 
 	def __str__(self):
-		return "Cam({})".format(", ".join(map(str, self.__args)))
+		# return "Cam({})".format(", ".join(map(str, self.__args)))
+		return "Cam(e={}, up={}, f={}, fov={}, rat={})".format(
+				self.origin, self.up, self.up, self.focus, self.fov, self.aratio
+		)
 
 
 #### HELPERS
@@ -289,10 +308,6 @@ def topoint(v) -> Vector:
 		return Vector(v)
 	else:
 		return v
-
-
-def isnumber(n) -> bool:
-	return type(n) in (int, int64, float64, float) or str(n).isnumeric()
 
 
 def iscoll(e) -> bool:

@@ -3,7 +3,7 @@ import random
 
 from PIL import Image
 
-from raytracer.objects import COLORS, Camera, ObjectAbstract, Ray, Sphere, Vector
+from raytracer.objects import COLORS, Camera, HitPointData, ObjectAbstract, Ray, Sphere, Vector
 
 
 class RayCaster:
@@ -18,14 +18,16 @@ class RayCaster:
 
 	# TODO: textures
 
-	def __init__(self, resolution=200, camera=None, objects=None):
+	def __init__(self, resolution=200, camera=None, light=None, objects=None, maxlevel=3):
 		'''
 		:param resolution: can be a numeric value or collection of numeric values defining the resolution
 		:param camera: the scene camera
 		:param objects: a collection of all object of the scene
 		'''
-		self.objects = objects if objects else []
+		self.maxlevel = maxlevel
 		self.camera = camera
+		self.light = light
+		self.objects = objects if objects else []
 
 		if type(resolution) in (tuple, list):
 			if len(resolution) == 1:
@@ -80,7 +82,6 @@ class RayCaster:
 	# TODO: multiprocessed rayscasting
 
 	def castRays(self):
-
 		if not self.camera:
 			raise RuntimeError("Camera not defined yet.")
 
@@ -93,20 +94,24 @@ class RayCaster:
 			self.logfile.write("x: " + str(x) + "\n")
 			for y in range(self.imageHeight):
 				ray = self.calcRay(x, y)
+				# maxdist = self.intersect(1, ray)
 				maxdist = float("inf")
+
 				color = COLORS.BG_COLOR
+
 
 				for object in self.objects:
 					hitdist = object.intersectionParameter(ray)
+					self.logfile.write("ray: " + str(ray) + " -> " + str(hitdist) + "\n")
 
-					self.logfile.write("y: " + str(y) + ": " + str(hitdist) + ", " + str(ray) + "\n")
+					# self.logfile.write("y: " + str(y) + ": " + str(hitdist) + ", " + str(ray) + "\n")
 
 					if hitdist:
-						if hitdist < maxdist:
+						if 0 < hitdist < maxdist:
 							maxdist = hitdist
 							color = object.colorAt(ray)
 
-				self.image.putpixel((x, y), color.value())
+					self.image.putpixel((x, y), color.value())
 
 			self.logfile.write("\n" * 2)
 
@@ -125,22 +130,67 @@ class RayCaster:
 				"JPEG", quality=75)
 		self.image.show()
 
+	def traceRay(self, level, ray):
+		hitPointData = self.intersect(level, ray)  # maxLevel = maximale Rekursions−Tiefe
+		if hitPointData:
+			return self.shade(level, hitPointData)
+		return COLORS.BG_COLOR
+
+	def shade(self, level, hitPointData):
+		directColor = self.computeDirectLight(hitPointData)
+		reflectedRay = self.computeReflectedRay(hitPointData)
+		reflectColor = self.traceRay(level + 1, reflectedRay)
+		# refractedRay = self.computeRefractedRay(hitPointData)
+		# refractColor = self.traceRay(level+1, refractedRay)
+
+		# return directColor + reflection * reflectedColor  # + refraction *  drefractedColor
+		pass
+
+	def computeDirectLight(self, hitPointData):
+		pass
+
+	def computeReflectedRay(self, hitPointData):
+		pass
+
+	def computeRefractedRay(self, hitPointData):
+		pass
+
+	def intersect(self, level, ray):
+		if level > self.maxlevel:
+			# if not intersection has been found after depth of maxlevel
+			return None
+
+		maxdist = float("inf")
+		object = None
+
+		for obj in self.objects:
+			hitdist = obj.intersectionParameter(ray)
+			if not hitdist: continue
+
+			# on intersection with obj
+			if 0 < hitdist < maxdist:
+				maxdist = hitdist
+				object = obj
+
+		if not object:
+			return None
+
+		return HitPointData(object=object, ray=ray, distance=maxdist)
+
 
 if __name__ == '__main__':
-	ray = Ray(Vector(0, 1, 2), Vector(0, 1, 6))
-	print(ray, "-", ray.pointAtParameter(1), "-", ray.pointAtParameter(2))
-
 	sphere_pos = Vector(0, 20, 550)
+
 	camera = Camera(
 			origin=Vector(0, 20, -200),
 			up=Vector(0, 1, 0),
-			focus=sphere_pos,
-			fov=45,
-			aratio=10 / 16
+			focus=Vector(0, 0, 1),
+			fov=145,
+			aratio=16 / 10
 	)
 
 	rc = RayCaster(resolution=100, camera=camera)
-	rc.add(Sphere(sphere_pos, 30, COLORS.GREEN))
+	rc.add(Sphere(sphere_pos, 1, COLORS.GREEN))
 
 	rc.castRays()
 	rc.export()

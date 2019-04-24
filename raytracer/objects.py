@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from math import sqrt, tan
 
-from numpy import add, cross, divide, dot, subtract
+from numpy import add, cross, divide, dot, power, subtract
 from numpy import float64, int64
 
 
@@ -86,6 +86,9 @@ class Vector:
 			v = Vector(v[0], v[1], v[2])
 		return Vector(subtract(self.vector(), v.vector()))
 
+	def __pow__(self, exponent, modulo=None):
+		return Vector(power(self.vector(), exponent))
+
 	def vector(self):
 		'''
 		:return: a tuple made up of x, y and z coordinates.
@@ -143,6 +146,10 @@ class ObjectAbstract(ABC):
 
 	@abstractmethod
 	def intersectionParameter(self, ray):
+		"""
+		:param ray: a Ray which is tested for intersecting the object
+		:return:
+		"""
 		pass
 
 	@abstractmethod
@@ -201,9 +208,12 @@ class Sphere(ObjectAbstract):
 		return "Sphere({}, {})".format(repr(self.center), self.radius)
 
 	def intersectionParameter(self, ray):
+		"""
+		:return:
+		"""
 		co = self.center - ray.origin
 		v = co.dot(ray.direction)
-		discriminant = (v ** 2 - co.dot(co)) + self.radius ** 2
+		discriminant = v ** 2 - co.dot(co) + self.radius ** 2
 
 		if discriminant < 0:
 			return None
@@ -211,7 +221,9 @@ class Sphere(ObjectAbstract):
 			return v - sqrt(discriminant)
 
 	def normalAt(self, p) -> Vector:
-		return self.center.vectortopoint(p).normalized()
+		cp = p - self.center
+		# return cp / cp.length()
+		return cp.normalized()
 
 
 class Plane(ObjectAbstract):
@@ -283,7 +295,7 @@ class Camera:
 		self.aratio = aratio
 		self.width = aratio * self.height
 
-		self.f = self.origin.vectortopoint(focus).normalized()
+		self.f = (focus - self.origin).normalized()
 		self.s = self.f.cross(up).normalized()
 		self.u = self.s.cross(self.f)
 
@@ -298,6 +310,14 @@ class Camera:
 		return "Cam(e={}, up={}, f={}, fov={}, rat={})".format(
 				self.origin, self.up, self.up, self.focus, self.fov, self.aratio
 		)
+
+
+class HitPointData:
+
+	def __init__(self, ray=None, object=None, distance=None):
+		self.ray = ray
+		self.object = object
+		self.distance = distance
 
 
 #### HELPERS

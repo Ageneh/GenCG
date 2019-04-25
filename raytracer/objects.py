@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from math import sqrt, tan
 
-from numpy import add, cross, divide, dot, power, subtract
+from numpy import add, cross, divide, dot, power, sqrt, subtract, tan
 from numpy import float64, int64
+from numpy.linalg import norm
 
 
 def isnumber(n) -> bool:
@@ -125,7 +125,8 @@ class Vector:
 		Calculates the length as follows:
 		-> sqrt(<v,v>) = sqrt(sum(x^2 + y^2 + z^2))
 		'''
-		return sqrt(self * self)
+		# return sqrt(sum(multiply(self.vector(), self.vector())))
+		return norm(self.vector())
 
 	def vectortopoint(self, p):
 		return p - self.vector()
@@ -175,7 +176,7 @@ class Ray:
 				return v
 
 		self.origin = check(origin)
-		self.direction = check(direction)
+		self.direction = check(direction).normalized()
 
 	def __repr__(self):
 		return "Ray({}, {})".format(repr(self.origin), repr(self.direction))
@@ -184,8 +185,7 @@ class Ray:
 		return "R({}, {})".format(str(self.origin), str(self.direction))
 
 	def pointAtParameter(self, t) -> Vector:
-		if not isnumber(t):
-			return None
+		if not isnumber(t): return None
 		return self.origin + self.direction * t
 
 
@@ -213,7 +213,7 @@ class Sphere(ObjectAbstract):
 		"""
 		co = self.center - ray.origin
 		v = co.dot(ray.direction)
-		discriminant = v ** 2 - co.dot(co) + self.radius ** 2
+		discriminant = v * v - dot(co, co) + self.radius * self.radius
 
 		if discriminant < 0:
 			return None
@@ -284,7 +284,7 @@ class Triangle(ObjectAbstract):
 
 class Camera:
 
-	def __init__(self, origin=Vector(0, 0, 0), up=Vector(0, 1, 0), focus=Vector(0, 0, 1), fov=45, aratio=10 / 16):
+	def __init__(self, origin=Vector(0, 0, 0), up=Vector(0, 1, 0), focus=Vector(0, 0, 1), fov=45, aratio=1):
 		self.origin = origin
 		self.fov = fov
 		self.up = up

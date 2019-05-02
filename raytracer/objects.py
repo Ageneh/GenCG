@@ -1,243 +1,398 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
-from numpy import add, cross, divide, dot, power, sqrt, subtract, tan
-from numpy import float64, int64
+from numpy import abs, add, cross, divide, dot, multiply, sqrt, subtract, sum, tan
+from numpy import array, float64, ndarray
 from numpy.linalg import norm
 
 
-def isnumber(n) -> bool:
-	return type(n) in (int, int64, float64, float) or str(n).isnumeric()
+class HitPointData:
 
+	# magic
 
-### OBJECTS
+	def __init__(self, ray=None, object=None, distance=None):
+		self.ray = ray
+		self.object = object
+		self.distance = distance
+		self.intersection = ray.point_at(self.distance)
+		self.normal = object.normalat(self.intersection)
+		self.reflected = ray.direction.reflect(self.normal).normalized()
+
+	def __iter__(self):
+		for d in self.data(): yield d
+		raise StopIteration
+
+	# behaviour
+
+	def data(self) -> tuple:
+		return self.ray, self.object, self.distance, self.intersection, self.normal, self.reflected
 
 
 class Color:
-
-	def __init__(self, r=0, g=0, b=0):
-		self.rgb = r, g, b
-
-	def __repr__(self):
-		return "Color({})".format(",".join(map(repr, self.rgb)))
-
-	def value(self):
-		return self.rgb
+	_MIN, _MAX = 0, 255
+	_d = {"r": 0, "g": 1, "b": 2, }
 
 
-class COLORS:
-	BLACK = Color()
-	BG_COLOR = BLACK
-	RED = Color(r=255)
-	GREEN = Color(g=255)
-	BLUE = Color(b=255)
-	WHITE = Color(r=255, g=255, b=255)
+	def smaller(self, x) -> bool:
+		return x < self._MIN
+
+	def bigger(self, x) -> bool:
+		return x > self._MAX
+
+	# magic
+
+	def __add__(self, other):
+		r, g, b = self.rgb + other.rgb
+		return Color(r, g, b)
+
+	__radd__ = __add__
+
+	def __mul__(self, other):
+		if isinstance(other, (int, float64, float)):
+			r, g, b = self.rgb * other
+		else:
+			r, g, b = self.rgb * other.rgb
+		return Color(r, g, b)
+
+	__rmul__ = __mul__
+
+	def __sub__(self, other):
+		r, g, b = self.rgb - other.rgb
+		return Color(r, g, b)
+
+	__rsub__ = __sub__
+
+	def __iter__(self):
+		for v in self.rgb: yield v
+		raise StopIteration
+
+	def __getitem__(self, item: (int, str)):
+		if isinstance(item, str):
+			if item in self._d.keys():
+				return self.rgb[self._d[item]]
+		return self.rgb[item]
+
+	def __str__(self):
+		return "Color{}".format(str(tuple(self.rgb)))
+
+	__repr__ = __str__
+
+	def __init__(self, r=175, g=175, b=175):
+		self.rgb = self.check(r, g, b)
+
+	# behaviour
+
+	def check(self, r=125, g=125, b=125):
+		rgb = []
+		for v in (r, g, b):
+			if self.smaller(v):
+				v = self._MIN
+			elif self.bigger(v):
+				v = self._MAX
+			rgb.append(int(v))
+		return array(list(rgb))
+
+	def items(self):
+		return tuple(self.rgb)
+
+	torgb = items
+
+
+class isMaterial:
+
+	@abstractmethod
+	def getcolor(self, p=None) -> Color:
+		pass
+
+	@abstractmethod
+	def calccolor(self, c_in=None, shaded=False, phi=.0, theta=.0, intensity=1) -> Color:
+		pass
+
+
+class Material(isMaterial):
+
+	# magic
+
+	def __init__(self, color: Color, ambLvl=0.3,
+				 diffLvl=0.5, specLvl=0.5, surface=0):
+		self.color = color
+		self.setlevels(ambLvl=ambLvl, diffLvl=diffLvl, specLvl=specLvl)
+
+	# behaviour
+
+	def setlevels(self, ambLvl=0.3, diffLvl=0.5, specLvl=0.5, surface=0):
+		self.ambLvl = ambLvl
+		self.diffLvl = diffLvl
+		self.specLvl = specLvl
+		self.surface = surface
+		return self
+
+	def getcolor(self, p=None):
+		return self.color
+
+	def calcshaded(self, c_in: Color):
+		# return self.color + c_in * self.diffLvl
+		return self.color * self.diffLvl
+
+	def calccolor(self, c_in=None, phi=.0, theta=.0, intensity=1, p=None, shaded=False) -> Color:
+		if shaded:
+			return self.calcshaded(c_in)
+
+		res = self.color * intensity * self.ambLvl
+		res = res + self.color * intensity * self.diffLvl * phi
+		res = res + self.color * intensity * self.specLvl * (theta ** self.surface)
+
+		return res
 
 
 class Vector:
 
-	def __init__(self, x, *args):
-		def check(n):
-			return n if isnumber(n) else 0
+	# magic
 
-		if isnumber(x):
-			y, z = args[:2]
-		else:
-			x, y, z = x
+	def __getitem__(self, item: (int, slice)):
+		return self.xyz[item]
 
-		self.x = check(x)
-		self.y = check(y)
-		self.z = check(z)
+	def __iter__(self):
+		for i in self.xyz: yield i
+		raise StopIteration
 
-	def __repr__(self):
-		return "Point({}, {}, {})".format(
-				repr(self.x),
-				repr(self.y),
-				repr(self.z)
-		)
+	def __add__(self, other):
+		return Vector(add(self.xyz, other.xyz))
+
+	__radd__ = __add__
+
+	def __sub__(self, other):
+		return Vector(subtract(self.xyz, other.xyz))
+
+	__rsub__ = __sub__
+
+	def __mul__(self, other):
+		if isinstance(other, (float, float64, int)):
+			return Vector(multiply(self.xyz, other))
+		return Vector(multiply(self.xyz, other.xyz))
+
+	__rmul__ = __mul__
+
+	def __truediv__(self, other):
+		if isinstance(other, (float, float64, int)):
+			return Vector(divide(self.xyz, other))
+		return Vector(divide(self.xyz, other.xyz))
+
+	__rdiv__ = __truediv__
+
+	def __int__(self):
+		return self.dot(self)
 
 	def __str__(self):
-		return "P{}".format(repr(self.vector()))
+		return "Vector({})".format(str(self.xyz))
 
-	def __mul__(self, v):
-		if iscoll(v):
-			v = Vector(v[0], v[1], v[2])
-		elif isnumber(v):
-			# multiply vector by scalar
-			return Vector(dot(self.vector(), v))
+	__repr__ = __str__
 
-		# multiply vector by vector v
-		return self.dot(v)
+	def __init__(self, x, y=0, z=0):
+		if isinstance(x, Vector):
+			x, y, z = x.items()
+		elif type(x) in (tuple, list, array, ndarray):
+			x, y, z = x
+		self.xyz = array([x, y, z])
 
-	def __truediv__(self, v):
-		if iscoll(v):
-			v = Vector(v[0], v[1], v[2])
-		elif isnumber(v):
-			return Vector(divide(self.vector(), v))
+	# behaviour
 
-		return divide(self.vector(), v.vector())
+	scale = __mul__  # s must be a scalar/int/float
 
-	def __add__(self, v):
-		if iscoll(v):
-			v = Vector(v[0], v[1], v[2])
-		return Vector(add(self.vector(), v.vector()))
+	def items(self):
+		return self.xyz
 
-	def __sub__(self, v):
-		if iscoll(v):
-			v = Vector(v[0], v[1], v[2])
-		return Vector(subtract(self.vector(), v.vector()))
+	def dot(self, other):
+		return dot(self.xyz, other.xyz)
 
-	def __pow__(self, exponent, modulo=None):
-		return Vector(power(self.vector(), exponent))
+	def cross(self, other):
+		return Vector(cross(self.xyz, other.xyz))
 
-	def vector(self):
-		'''
-		:return: a tuple made up of x, y and z coordinates.
-		-> (x, y, z)
-		'''
-		return self.x, self.y, self.z
-
-	def scale(self, v):
-		'''
-		:param v: a scalar used to scale the vector
-		:return: a new scaled vector
-		'''
-		if not isnumber(v):
-			return None
-		return self.__mul__(v)
-
-	def dot(self, v):
-		'''
-		:param v: is a Vector object
-		:return: the scalar product of two Vectors => self • v
-		'''
-		if type(v) is not Vector:
-			return None
-		return dot(self.vector(), v.vector())
-
-	def cross(self, v):
-		if iscoll(v):
-			v = Vector(v)
-		return Vector(cross(self.vector(), v.vector()))
-
-	def length(self) -> float:
-		'''
-		:return: the length of a Vector
-		Calculates the length as follows:
-		-> sqrt(<v,v>) = sqrt(sum(x^2 + y^2 + z^2))
-		'''
-		# return sqrt(sum(multiply(self.vector(), self.vector())))
-		return norm(self.vector())
-
-	def vectortopoint(self, p):
-		return p - self.vector()
+	def length(self):
+		return norm(self.xyz)
 
 	def normalized(self):
-		'''
-		:return: the normalized Vector by dividing the Vector by its length
-		'''
 		return self / self.length()
 
+	def reflect(self, axis):
+		axis = axis.normalized()
+		return self - multiply(self.dot(axis), 2 * axis)  # (S48)
 
-class ObjectAbstract(ABC):
+	def vectorto(self, b):
+		# a vector from self (point a) to point b
+		return b - self
 
-	def __init__(self, color=COLORS.WHITE):
-		# self.vectorToPoint = lambda a, b: b - a
-		self.color = color
+
+class isTexture:
+
+	@abstractmethod
+	def getcolor(self, p=None) -> Color:
 		pass
 
 	@abstractmethod
-	def intersectionParameter(self, ray):
-		"""
-		:param ray: a Ray which is tested for intersecting the object
-		:return:
-		"""
+	def calccolor(self, p: Vector, phi=.0, theta=.0, intensity=1, shaded=False) -> Color:
 		pass
 
-	@abstractmethod
-	def normalAt(self, p) -> Vector:
-		'''
-		:param p: any point from which the normal of the Object is calculated
-		:return: a new normal vector object at the given point
-		'''
-		pass
 
-	def colorAt(self, ray):
-		# TODO: calculate shaded color
-		return self.color
+class CheckerBoard(isTexture):
+
+	def __init__(self, first: Material, second: Material, size=3,
+				 ambLvl=0.3, diffLvl=0.5, specLvl=0.5, surface=0, c_in=None):
+		self.firstMat = first
+		self.firstMat.setlevels(ambLvl, diffLvl, specLvl)
+		self.secondMat = second
+		self.secondMat.setlevels(ambLvl, diffLvl, specLvl)
+		self.size = size
+		self.ambLvl = ambLvl
+		self.diffLvl = diffLvl
+		self.specLvl = specLvl
+		self.surface = surface
+
+	def getmat(self, p=None) -> Material:
+		v = p.scale(1.0 / self.size)
+
+		material = self.firstMat
+		if sum(list(map(lambda x: abs(int(x + .5)), v.xyz))) % 2:
+			material = self.secondMat
+		return material
+
+
+	def calccolor(self, p: Vector, phi=.0, theta=.0, intensity=1, shaded=False, c_in=None):
+		return self.getmat(p).calccolor(phi=phi, theta=theta, intensity=intensity, shaded=shaded, c_in=c_in)
 
 
 class Ray:
 
-	def __init__(self, origin, direction):
-		def check(v):
-			if iscoll(v):
-				return Vector(v)
-			else:
-				return v
+	# magic
 
-		self.origin = check(origin)
-		self.direction = check(direction).normalized()
-
-	def __repr__(self):
-		return "Ray({}, {})".format(repr(self.origin), repr(self.direction))
+	def __init__(self, origin: Vector, direction: Vector):
+		self.origin = origin
+		self.direction = direction.normalized()
 
 	def __str__(self):
-		return "R({}, {})".format(str(self.origin), str(self.direction))
+		return "Ray({}, {})".format(str(self.origin), str(self.direction))
 
-	def pointAtParameter(self, t) -> Vector:
-		if not isnumber(t): return None
+	__repr__ = __str__
+
+	# behaviour
+
+	def point_at(self, t: (int, float, float64)) -> Vector:
 		return self.origin + self.direction * t
 
 
-class Light(Vector):
+class Light:
 
-	def __init__(self, x, *args, intensity=1.0, color=COLORS.WHITE):
-		super().__init__(x, *args)
-		self.intensity = intensity
+	# magic
+
+	def __str__(self):
+		return "Light({}, {}, {})".format(
+				str(self.origin),
+				str(self.color),
+				str(self.intensity), )
+
+	def __init__(self, origin: Vector, color: Color, intensity=1.0):
+		self.origin = origin
 		self.color = color
+		self.intensity = intensity
 
 
-class Sphere(ObjectAbstract):
+class Camera:
 
-	def __init__(self, center, radius, color):
-		super().__init__(color=color)
-		self.center = center  # point
-		self.radius = radius  # scalar
+	# magic
+
+	def __init__(self, origin: Vector, up: Vector, focus: Vector, fov: (int, float, float64), res=(200, 200)):
+		self.origin = origin
+		self.up = -1 * up
+		self.focus = focus
+		self.fov = fov
+
+		resW, resH = res
+		self.alpha = self.fov / 2
+		self.height = 2 * tan(self.alpha)
+		self.aratio = resH / resW
+		self.width = self.aratio * self.height
+
+		self.f = self.origin.vectorto(self.focus).normalized()
+		self.s = self.f.cross(up).normalized()
+		self.u = self.s.cross(self.f)
+
+	def __str__(self):
+		return "Camera({})".format(", ".join([
+			str(self.origin), str(self.up),
+			str(self.focus), str(self.fov)
+		]))
+
+	__repr__ = __str__
+
+
+# RENDER OBJECTS START
+
+class Sphere:
+
+	# magic
 
 	def __repr__(self):
 		return "Sphere({}, {})".format(repr(self.center), self.radius)
 
-	def intersectionParameter(self, ray):
+	__str__ = __repr__
+
+	def __eq__(self, other):
+		return self.__hash__() == other.__hash__()
+
+	def __hash__(self):
+		return hash((self.items(), self.material))
+
+	def __init__(self, center: Vector, radius: (int, float, float64), material: Material):
+		self.center = center  # point
+		self.radius = radius  # radius
+		self.material = material  # scalar
+
+	# behaviour
+
+	# DONE
+	def intersectionparameter(self, ray: Ray) -> float:
 		"""
-		:return:
+		:return: discriminant
 		"""
 		co = self.center - ray.origin
 		v = co.dot(ray.direction)
-		discriminant = v * v - dot(co, co) + self.radius * self.radius
+		discriminant = v * v - co.dot(co) + self.radius * self.radius
 
 		if discriminant < 0:
 			return None
 		else:
 			return v - sqrt(discriminant)
 
-	def normalAt(self, p) -> Vector:
-		cp = p - self.center
-		# return cp / cp.length()
-		return cp.normalized()
+	def items(self):
+		return self.center, self.radius
+
+	def normalat(self, p: Vector) -> Vector:
+		return self.center.vectorto(p).normalized()
 
 
-class Plane(ObjectAbstract):
+class Plane:
 
-	def __init__(self, point, normal):
-		super().__init__()
-		self.point = point  # point
-		self.normal = normal.normalized()  # vector
+	# magic
 
 	def __repr__(self):
-		return "Plane({}, {})".format(repr(self.point), repr(self.normal))
+		return "Plane({}, {})".format(repr(self.origin), repr(self.normal))
 
-	def intersectionParameter(self, ray):
-		op = ray.origin - self.point
+	__str__ = __repr__
+
+	def __eq__(self, other):
+		return self.__hash__() == other.__hash__()
+
+	def __hash__(self):
+		return hash((self.items(), self.material))
+
+	def __init__(self, origin: Vector, normal: Vector, material: Color):
+		self.origin = origin  # point
+		self.normal = normal.normalized()  # vector
+		self.material = material
+
+	# behaviour
+
+	def intersectionparameter(self, ray: Ray) -> float:
+		op = ray.origin - self.origin
 		a = op.dot(self.normal)
 		b = ray.direction.dot(self.normal)
 		if b:
@@ -245,30 +400,45 @@ class Plane(ObjectAbstract):
 		else:
 			return None
 
-	def normalAt(self, p) -> Vector:
+	def items(self):
+		return self.origin, self.normal
+
+	def normalat(self, p=None) -> Vector:
 		return self.normal
 
 
-class Triangle(ObjectAbstract):
+class Triangle:
 
-	def __init__(self, a, b, c):
-		super().__init__()
+	# magic
+
+	def __repr__(self):
+		return "Triangle({}, {}, {})".format(repr(self.a), repr(self.b), repr(self.c))
+
+	__str__ = __repr__
+
+	def __eq__(self, other):
+		return self.__hash__() == other.__hash__()
+
+	def __hash__(self):
+		return hash((self.items(), self.material))
+
+	def __init__(self, a: Vector, b: Vector, c: Vector, material: Color):
+		self.material = material
 		self.a = a  # point
 		self.b = b  # point
 		self.c = c  # point
 		self.u = self.b - self.a  # direction vector
 		self.v = self.c - self.a  # direction vector
 
-	def __repr__(self):
-		return "Triangle({}, {}, {})".format(repr(self.a), repr(self.b), repr(self.c))
+	# behaviour
 
-	def intersectionParameter(self, ray):
-		w = ray.origin
+	def intersectionparameter(self, ray) -> float:
+		w = ray.origin - self.a
 		dv = ray.direction.cross(self.v)
 		dvu = dv.dot(self.u)
 
 		if dvu == 0.0:
-			return 0
+			return None
 
 		wu = w.cross(self.u)
 		r = dv.dot(w) / dvu
@@ -278,57 +448,34 @@ class Triangle(ObjectAbstract):
 		else:
 			return None
 
-	def normalAt(self, p):
-		return Vector(cross(self.u, self.v)).normalized()
+	def items(self):
+		return self.a, self.b, self.c
+
+	def normalat(self, p=None) -> Vector:
+		return Vector(self.u.cross(self.v).normalized())
+
+# RENDER OBJECTS END
 
 
-class Camera:
+if __name__ == '__main__':
+	v1 = Vector(2, 3, 4)
+	v2 = Vector(2, 5, 2)
 
-	def __init__(self, origin=Vector(0, 0, 0), up=Vector(0, 1, 0), focus=Vector(0, 0, 1), fov=45, aratio=1):
-		self.origin = origin
-		self.fov = fov
-		self.up = up
-		self.focus = focus
+	print(v1, v2)
+	print(v1 * v2)
+	print(v1.dot(v2))
 
-		self.alpha = self.fov / 2
-		self.height = 2 * tan(self.alpha)
-		self.aratio = aratio
-		self.width = aratio * self.height
+	r = Ray(v1, Vector(1, 1, 0))
+	print(r)
+	print(r.point_at(5))
+	print(v1.vectorto(v2))
 
-		self.f = (focus - self.origin).normalized()
-		self.s = self.f.cross(up).normalized()
-		self.u = self.s.cross(self.f)
+	col1 = Color(2, 5, 73)
+	col2 = Color(200, 100, 73)
 
-	def __repr__(self):
-		# return "Camera({})".format(", ".join(map(repr, self.__args)))
-		return "Camera(origin={}, up={}, focus={}, fov={}, aratio={})".format(
-				self.origin, self.up, self.up, self.focus, self.fov, self.aratio
-		)
+	print(col2 + col2)
 
-	def __str__(self):
-		# return "Cam({})".format(", ".join(map(str, self.__args)))
-		return "Cam(e={}, up={}, f={}, fov={}, rat={})".format(
-				self.origin, self.up, self.up, self.focus, self.fov, self.aratio
-		)
-
-
-class HitPointData:
-
-	def __init__(self, ray=None, object=None, distance=None):
-		self.ray = ray
-		self.object = object
-		self.distance = distance
-
-
-#### HELPERS
-
-
-def topoint(v) -> Vector:
-	if iscoll(v):
-		return Vector(v)
-	else:
-		return v
-
-
-def iscoll(e) -> bool:
-	return type(e) in (tuple, list)
+	arr = array([2, 3, 4])
+	arr1 = array([2, 3, 4])
+	print(dot(arr, arr1))
+	print(arr - arr1)

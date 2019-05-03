@@ -31,13 +31,6 @@ class Color:
 	_MIN, _MAX = 0, 255
 	_d = {"r": 0, "g": 1, "b": 2, }
 
-
-	def smaller(self, x) -> bool:
-		return x < self._MIN
-
-	def bigger(self, x) -> bool:
-		return x > self._MAX
-
 	# magic
 
 	def __add__(self, other):
@@ -81,6 +74,17 @@ class Color:
 
 	# behaviour
 
+	def items(self):
+		return tuple(self.rgb)
+
+	torgb = items
+
+	def smaller(self, x) -> bool:
+		return x < self._MIN
+
+	def bigger(self, x) -> bool:
+		return x > self._MAX
+
 	def check(self, r=125, g=125, b=125):
 		rgb = []
 		for v in (r, g, b):
@@ -91,11 +95,6 @@ class Color:
 			rgb.append(int(v))
 		return array(list(rgb))
 
-	def items(self):
-		return tuple(self.rgb)
-
-	torgb = items
-
 
 class isMaterial:
 
@@ -104,17 +103,32 @@ class isMaterial:
 		pass
 
 	@abstractmethod
-	def calccolor(self, c_in=None, shaded=False, phi=.0, theta=.0, intensity=1) -> Color:
+	def calccolor(self, shaded=False, phi=.0, theta=.0, intensity=1) -> Color:
 		pass
 
 
 class Material(isMaterial):
+	__SHADOW = .2
 
 	# magic
+
+	def __str__(self):
+		data = (
+			self.color,
+			self.ambLvl,
+			self.diffLvl,
+			self.specLvl,
+			self.surface,
+		)
+		string = ", ".join(tuple(map(str, data)))
+		return "Material({})".format(string)
+
+	__repr__ = __str__
 
 	def __init__(self, color: Color, ambLvl=0.3,
 				 diffLvl=0.5, specLvl=0.5, surface=0):
 		self.color = color
+		self.surface = surface
 		self.setlevels(ambLvl=ambLvl, diffLvl=diffLvl, specLvl=specLvl)
 
 	# behaviour
@@ -129,18 +143,16 @@ class Material(isMaterial):
 	def getcolor(self, p=None):
 		return self.color
 
-	def calcshaded(self, c_in: Color):
-		# return self.color + c_in * self.diffLvl
-		return self.color * self.diffLvl
+	def calcshaded(self):
+		return self.color * self.__SHADOW
 
-	def calccolor(self, c_in=None, phi=.0, theta=.0, intensity=1, p=None, shaded=False) -> Color:
+	def calccolor(self, phi=.0, theta=.0, intensity=1, p=None, shaded=False) -> Color:
 		if shaded:
-			return self.calcshaded(c_in)
+			return self.calcshaded()
 
 		res = self.color * intensity * self.ambLvl
 		res = res + self.color * intensity * self.diffLvl * phi
 		res = res + self.color * intensity * self.specLvl * (theta ** self.surface)
-
 		return res
 
 
@@ -214,11 +226,11 @@ class Vector:
 		return self / self.length()
 
 	def reflect(self, axis):
-		axis = axis.normalized()
+		axis = axis.normalized()  # normalize to be safe
 		return self - multiply(self.dot(axis), 2 * axis)  # (S48)
 
 	def vectorto(self, b):
-		# a vector from self (point a) to point b
+		# vector from self (point a) to point b
 		return b - self
 
 
@@ -235,8 +247,23 @@ class isTexture:
 
 class CheckerBoard(isTexture):
 
+	def __str__(self):
+		data = (
+			self.firstMat,
+			self.secondMat,
+			self.size,
+			self.ambLvl,
+			self.diffLvl,
+			self.specLvl,
+			self.surface
+		)
+		string = ", ".join(tuple(map(str, data)))
+		return "CheckerBoard({})".format(string)
+
+	__repr__ = __str__
+
 	def __init__(self, first: Material, second: Material, size=3,
-				 ambLvl=0.3, diffLvl=0.5, specLvl=0.5, surface=0, c_in=None):
+				 ambLvl=0.3, diffLvl=0.5, specLvl=0.5, surface=0):
 		self.firstMat = first
 		self.firstMat.setlevels(ambLvl, diffLvl, specLvl)
 		self.secondMat = second
@@ -255,9 +282,13 @@ class CheckerBoard(isTexture):
 			material = self.secondMat
 		return material
 
+	def setsize(self, size):
+		checker = eval(repr(self))
+		checker.size = size
+		return checker
 
 	def calccolor(self, p: Vector, phi=.0, theta=.0, intensity=1, shaded=False, c_in=None):
-		return self.getmat(p).calccolor(phi=phi, theta=theta, intensity=intensity, shaded=shaded, c_in=c_in)
+		return self.getmat(p).calccolor(phi=phi, theta=theta, intensity=intensity, shaded=shaded)
 
 
 class Ray:
@@ -288,6 +319,8 @@ class Light:
 				str(self.origin),
 				str(self.color),
 				str(self.intensity), )
+
+	__repr__ = __str__
 
 	def __init__(self, origin: Vector, color: Color, intensity=1.0):
 		self.origin = origin

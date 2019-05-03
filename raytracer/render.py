@@ -1,4 +1,5 @@
 from datetime import datetime
+from threading import Thread
 
 from PIL import Image
 
@@ -16,7 +17,7 @@ class RayTracer:
 		time1 = "-".join([str(start.month), str(start.day)])
 		time2 = ":".join([str(start.hour), str(start.minute)])
 		directory = "../renders/"
-		fname = "renders-{}_{}".format(time1, time2)
+		fname = "{}_{}-fov{}-res{}x{}".format(time1, time2, str(self.camera.fov), str(self.resW), str(self.resH))
 
 		# image
 		img_fname = directory + fname + ".jpg"
@@ -62,6 +63,7 @@ class RayTracer:
 		self.image.show("Image")
 		return
 
+	# DONE
 	def start(self):
 		start = datetime.now()
 
@@ -74,45 +76,44 @@ class RayTracer:
 	def castrays(self):
 		threads = []
 
-		# for x in range(self.resW):
-		# 	for y in range(self.resH):
-		# 		self.pixels.append(self.compute(x, y))
+		part_width = int(self.resW / self.multi)
+		parts = [[part_width * p - part_width, part_width * p - 1] for p in range(1, self.multi + 1)]
 
-		# for x in range(self.resW):
-		# 	self.compute_multi(x)
-		# 	# thread = Thread(target=self.compute_height, args=(x,), daemon=True)
-		# 	# threads.append(thread)
+		for x_start, x_end in parts:
+			thread = Thread(target=self.compute_multi, args=(x_start, x_end), daemon=False)
+			threads.append(thread)
 
+		for t in threads: t.start()
+		for t in threads: t.join()
 		return
 
-	## -
-	def compute_multi(self, x):
-		# for y in range(self.resH):
-		# 	thread = Thread(target=self.compute, args=(x, y), daemon=False)
-		# 	thread.start()
-
-		# Pool(processes=self.resH).map(self.compute, [(x, y) for y in range(self.resH)])
+	# DONE
+	def compute_multi(self, x_start, x_end):
+		for x in range(x_start, x_end + 1):
+			print(x_start, x_start, "compute pix", x)
+			for y in range(self.resH):
+				self.compute(x, y)
 		return
 
 	# DONE
 	def compute(self, x: int, y: int):
 		ray = self.calcray(x, y)
 
-		if not self.intersect(1, ray):
-			# no intersection
+		if not self.intersect(1, ray):  # no intersection
 			return (x, y), black.items()
 
 		color = self.traceray(1, ray)
-
 		self.pixels.append(((x, y), color.items()))
-
 		return (x, y), color.items()
 
 	# DONE
-	def __init__(self, camera: Camera, multi=False, light=None,
+	def __init__(self, camera: Camera, multi=0, light=None,
 				 objects=[], res=(200, 200), maxlevel=5, reflection=1.0):
 		self.camera = camera
-		self.multi = multi
+		if multi and multi >= 2:
+			self.multi = multi
+		else:
+			self.multi = False
 		self.light = light
 		self.objects = objects
 		self.resW, self.resH = res
@@ -124,12 +125,12 @@ class RayTracer:
 		self.pixels = []
 		self.__mindist = .0001
 
+	# DONE
 	def traceray(self, level: int, ray: Ray):
 		hitPointData = self.intersect(level, ray)
 
 		if hitPointData:
 			return self.shade(level, hitPointData)
-
 		return black
 
 	# DONE
@@ -160,23 +161,6 @@ class RayTracer:
 		return HitPointData(object=object, ray=ray, distance=maxdist)
 
 	# DONE
-	def shade(self, level: int, hpd: HitPointData) -> Color:
-		directcolor = self.com_directlight(hpd)
-		reflectedray = Ray(hpd.intersection, hpd.reflected)
-		reflectcolor = self.traceray(level + 1, reflectedray)
-
-		if self.objectbetween(hpd):
-			return self.com_shadedcolor(hpd)
-
-		return directcolor + self.reflection * reflectcolor
-
-	def com_shadedcolor(self, hpd: HitPointData):
-		intersection = hpd.intersection
-		object = hpd.object
-
-		return object.material.calccolor(c_in=self.light.color, p=intersection, shaded=True)
-
-	# DONE
 	def objectbetween(self, hpd: HitPointData):
 		for obj in self.objects:
 			if obj == hpd.object:
@@ -188,6 +172,24 @@ class RayTracer:
 				return True
 		return False
 
+	# DONE
+	def shade(self, level: int, hpd: HitPointData) -> Color:
+		directcolor = self.com_directlight(hpd)
+		reflectedray = Ray(hpd.intersection, hpd.reflected)
+		reflectcolor = self.traceray(level + 1, reflectedray)
+
+		if self.objectbetween(hpd):
+			return self.com_shadedcolor(hpd)
+
+		return directcolor + self.reflection * reflectcolor
+
+	# DONE
+	def com_shadedcolor(self, hpd: HitPointData):
+		intersection = hpd.intersection
+		object = hpd.object
+		return object.material.calccolor(p=intersection, shaded=True)
+
+	# DONE
 	def com_directlight(self, hpd: HitPointData) -> Color:
 		ray, object, distance, intersection, normal, reflected = hpd.data()
 
@@ -196,31 +198,31 @@ class RayTracer:
 		d = ray.direction
 
 		# phi := <l, n>
-		phi = tolight.dot(normal)  # * self.light.intensity
+		phi = tolight.dot(normal)
 
-		# theta := <lr, -d>^n
-		theta = tolight_r.dot(-1 * d)  # * self.light.intensity
+		# theta := <lr, -d>
+		theta = tolight_r.dot(-1 * d)
 
-		return object.material.calccolor(c_in=self.light.color,
+		return object.material.calccolor(
 										 phi=phi,
 										 theta=theta,
 										 intensity=self.light.intensity,
-										 p=intersection)  # * phi  * theta
+				p=intersection)
 
 
 if __name__ == '__main__':
 	up = Vector(0, -1, 0)
-	fov = 45
+	fov = 20
 	radius = 30
 	side = radius + 20
-	z = 300
+	z = 100
 	top = 70
 	_res = 200
-	plane_y = -20
+	plane_y = -(radius + 10)
 
 	focus = Vector(0, 35, z)
-	camera = Camera(Vector(0, 10, -1), up, focus, fov, res=(_res, _res))
-	light = Light(Vector(75, 100, 20), white, intensity=1.0)
+	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=(_res, _res))
+	light = Light(Vector(50, 175, 20), white, intensity=1.0)
 
 	sp0 = Sphere(Vector(side, 0, z), radius, green_mat)
 	sp1 = Sphere(Vector(0, top, z), radius, blue_mat)
@@ -228,7 +230,7 @@ if __name__ == '__main__':
 
 	objects = [
 		sp0, sp1, sp2,
-		Plane(Vector(0, -40, 0), up * -1, checkerboard_tex),
+		Plane(Vector(0, -40, 0), up * -1, checkerboard_tex.setsize(15)),
 		Triangle(sp0.center, sp1.center, sp2.center, material=yellow_mat),
 	]
 
@@ -238,7 +240,8 @@ if __name__ == '__main__':
 			objects=objects,
 			res=(_res, _res),
 			reflection=0.5,
-			maxlevel=4
+			maxlevel=4,
+			multi=4
 	)
 
 	rt.start()

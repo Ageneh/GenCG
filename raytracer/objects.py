@@ -341,7 +341,7 @@ class Camera:
 		resW, resH = res
 		self.alpha = self.fov / 2
 		self.height = 2 * tan(self.alpha)
-		self.aratio = resH / resW
+		self.aratio = resW / resH
 		self.width = self.aratio * self.height
 
 		self.f = self.origin.vectorto(self.focus).normalized()

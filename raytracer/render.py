@@ -1,5 +1,6 @@
+import multiprocessing
 from datetime import datetime
-from threading import Thread
+from multiprocessing import Manager, Process
 
 from PIL import Image
 
@@ -14,8 +15,8 @@ class RayTracer:
 		self.image = Image.new("RGB", (self.resW, self.resH))
 
 		duration = end - start
-		time1 = "-".join([str(start.month), str(start.day)])
-		time2 = ":".join([str(start.hour), str(start.minute)])
+		time1 = "-".join([str(start.year), str(start.month), str(start.day)])
+		time2 = ":".join([str(start.year), str(start.hour), str(start.minute)])
 		directory = "../renders/"
 		fname = "{}_{}-fov{}-res{}x{}".format(time1, time2, str(self.camera.fov), str(self.resW), str(self.resH))
 
@@ -24,41 +25,47 @@ class RayTracer:
 
 		for xy, color in self.pixels:
 			self.image.putpixel(xy, color)
-		self.image.save(img_fname, "JPEG", quality=99)
 
-		# log
-		with open(directory + "render-logs" + ".log", "a+") as file:
-			file.write("image: {}".format(img_fname.replace("..", ".")))
-			file.write("\n")
+		if self._export:
+			from os import path, mkdir
+			if not path.isdir(directory):
+				mkdir(directory)
 
-			file.write("time: {}".format(duration))
-			file.write("\n")
+			self.image.save(img_fname, "JPEG", quality=99)
 
-			file.write("resolution: {} x {} px".format(str(self.resW), str(self.resH)))
-			file.write("\n")
+			# log
+			with open(directory + "render-logs" + ".log", "a+") as file:
+				file.write("image: {}".format(img_fname.replace("..", ".")))
+				file.write("\n")
 
-			file.write("aspect ratio: {}".format(str(self.camera.aratio)))
-			file.write("\n")
+				file.write("time: {}".format(duration))
+				file.write("\n")
 
-			file.write("multi: {}".format(str(self.multi)))
-			file.write("\n")
+				file.write("resolution: {} x {} px".format(str(self.resW), str(self.resH)))
+				file.write("\n")
 
-			file.write("reflection: {}".format(str(self.reflection)))
-			file.write("\n")
+				file.write("aspect ratio: {}".format(str(self.camera.aratio)))
+				file.write("\n")
 
-			file.write("max depth level: {}".format(str(self.maxlevel)))
-			file.write("\n")
+				file.write("multi: {}".format(str(self.multi)))
+				file.write("\n")
 
-			file.write("camera: {}".format(str(self.objects)))
-			file.write("\n")
+				file.write("reflection: {}".format(str(self.reflection)))
+				file.write("\n")
 
-			file.write("light: {}".format(str(self.camera)))
-			file.write("\n")
+				file.write("max depth level: {}".format(str(self.maxlevel)))
+				file.write("\n")
 
-			file.write("objects: {}".format(str(self.objects)))
-			file.write("\n\n")
-			file.write("# " * 20)
-			file.write("\n\n")
+				file.write("camera: {}".format(str(self.objects)))
+				file.write("\n")
+
+				file.write("light: {}".format(str(self.camera)))
+				file.write("\n")
+
+				file.write("objects: {}".format(str(self.objects)))
+				file.write("\n\n")
+				file.write("# " * 20)
+				file.write("\n\n")
 
 		self.image.show("Image")
 		return
@@ -74,26 +81,49 @@ class RayTracer:
 		self.export(start, end)
 
 	def castrays(self):
-		threads = []
+		if not self.multi:
+			for x in range(self.resW):
+				for y in range(self.resH):
+					self.compute(x, y)
+			return
 
 		part_width = int(self.resW / self.multi)
 		parts = [[part_width * p - part_width, part_width * p - 1] for p in range(1, self.multi + 1)]
+		parts[-1][-1] = self.resW - 1
 
+		processes = []
+		i = 0
+
+		values_pixels = []
+		length = self.resH
+
+		lst = Manager().list()
 		for x_start, x_end in parts:
-			thread = Thread(target=self.compute_multi, args=(x_start, x_end), daemon=False)
-			threads.append(thread)
+			process = Process(target=self.compute_multi,
+							  args=(x_start, x_end, lst),
+							  name="render-part-{}".format(i))
+			processes.append(process)
+			i += 1
 
-		for t in threads: t.start()
-		for t in threads: t.join()
+		for p in processes: p.start()
+		for p in processes:
+			p.join()
+			p.terminate()
+
+		self.pixels = lst
 		return
 
 	# DONE
-	def compute_multi(self, x_start, x_end):
+	def compute_multi(self, x_start, x_end, lst):
+		print("> started", multiprocessing.current_process().name)
+
 		for x in range(x_start, x_end + 1):
-			print(x_start, x_start, "compute pix", x)
 			for y in range(self.resH):
-				self.compute(x, y)
-		return
+				lst.append(self.compute(x, y))
+
+		print("> done with", x_start, x_end)
+		print(">", multiprocessing.current_process().name, "waiting for rest\n")
+		return lst
 
 	# DONE
 	def compute(self, x: int, y: int):
@@ -108,7 +138,9 @@ class RayTracer:
 
 	# DONE
 	def __init__(self, camera: Camera, multi=0, light=None,
-				 objects=[], res=(200, 200), maxlevel=5, reflection=1.0):
+				 objects=[], res=(200, 200), maxlevel=5, reflection=1.0, export=False):
+		# ShareManager.register('SharedData', self)
+		self.pixels = []
 		self.camera = camera
 		if multi and multi >= 2:
 			self.multi = multi
@@ -122,8 +154,9 @@ class RayTracer:
 		self.image = None
 		self.maxlevel = maxlevel
 		self.reflection = reflection
-		self.pixels = []
 		self.__mindist = .0001
+		self._export = export
+
 
 	# DONE
 	def traceray(self, level: int, ray: Ray):
@@ -166,8 +199,8 @@ class RayTracer:
 			if obj == hpd.object:
 				continue
 
-			ray_to_light = Ray(hpd.intersection, self.light.origin - hpd.intersection)
-			dist = obj.intersectionparameter(ray_to_light)
+			ray_tolight = Ray(hpd.intersection, self.light.origin - hpd.intersection)
+			dist = obj.intersectionparameter(ray_tolight)
 			if dist and dist > self.__mindist:
 				return True
 		return False
@@ -204,9 +237,9 @@ class RayTracer:
 		theta = tolight_r.dot(-1 * d)
 
 		return object.material.calccolor(
-										 phi=phi,
-										 theta=theta,
-										 intensity=self.light.intensity,
+				phi=phi,
+				theta=theta,
+				intensity=self.light.intensity,
 				p=intersection)
 
 
@@ -217,11 +250,11 @@ if __name__ == '__main__':
 	side = radius + 20
 	z = 100
 	top = 70
-	_res = 200
+	_res = 500, 500
 	plane_y = -(radius + 10)
 
 	focus = Vector(0, 35, z)
-	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=(_res, _res))
+	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=_res)
 	light = Light(Vector(50, 175, 20), white, intensity=1.0)
 
 	sp0 = Sphere(Vector(side, 0, z), radius, green_mat)
@@ -238,10 +271,11 @@ if __name__ == '__main__':
 			camera=camera,
 			light=light,
 			objects=objects,
-			res=(_res, _res),
-			reflection=0.5,
+			res=_res,
+			reflection=0.2,
 			maxlevel=4,
-			multi=4
+			multi=0,
+			export=True
 	)
 
 	rt.start()

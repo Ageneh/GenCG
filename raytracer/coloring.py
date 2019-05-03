@@ -20,8 +20,8 @@ dark_grey = Color(79, 79, 79)
 # materials START
 
 ambi = .4
-diff = .2
-spec = .3
+diff = .9
+spec = .0
 red_mat = Material(red, ambLvl=ambi, diffLvl=diff, specLvl=spec, surface=5)
 green_mat = Material(green, ambLvl=ambi, diffLvl=diff, specLvl=spec, surface=5)
 blue_mat = Material(blue, ambLvl=ambi, diffLvl=diff, specLvl=spec, surface=5)

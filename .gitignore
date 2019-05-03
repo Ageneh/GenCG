@@ -106,5 +106,4 @@ logs/
 *.dat
 
 *test*.py
-rt/
-lee/
+mo/

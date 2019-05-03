@@ -2,6 +2,6 @@
 
 <br/>
 
-###**1 Raytracer**
+### Raytracer
 
 A simple recursive raytracer with Phong-shading.

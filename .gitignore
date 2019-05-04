@@ -105,5 +105,8 @@ logs/
 *.txt
 *.dat
 
+*.log
+renders/
+
 *test*.py
 mo/

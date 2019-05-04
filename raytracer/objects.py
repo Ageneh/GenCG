@@ -262,7 +262,7 @@ class CheckerBoard(isTexture):
 
 	__repr__ = __str__
 
-	def __init__(self, first: Material, second: Material, size=3,
+	def __init__(self, first: Material, second: Material, size=10,
 				 ambLvl=0.3, diffLvl=0.5, specLvl=0.5, surface=0):
 		self.firstMat = first
 		self.firstMat.setlevels(ambLvl, diffLvl, specLvl)
@@ -278,7 +278,7 @@ class CheckerBoard(isTexture):
 		v = p.scale(1.0 / self.size)
 
 		material = self.firstMat
-		if sum(list(map(lambda x: abs(int(x + .5)), v.xyz))) % 2:
+		if sum(list(map(lambda x: int(abs(x) + .5), v.xyz))) % 2:
 			material = self.secondMat
 		return material
 

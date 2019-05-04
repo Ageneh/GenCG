@@ -1,9 +1,11 @@
 import multiprocessing
 from datetime import datetime
 from multiprocessing import Manager, Process
+from sys import argv
 
 from PIL import Image
 
+from raytracer.argumentHandler import ArgsHandler
 from raytracer.coloring import *
 from raytracer.objects import Camera, HitPointData, Light, Plane, Ray, Sphere, Triangle, Vector
 
@@ -17,11 +19,13 @@ class RayTracer:
 		duration = end - start
 		time1 = "-".join([str(start.year), str(start.month), str(start.day)])
 		time2 = ":".join([str(start.year), str(start.hour), str(start.minute)])
-		directory = "../renders/"
+		directory = "./renders/"
 		fname = "{}_{}-fov{}-res{}x{}".format(time1, time2, str(self.camera.fov), str(self.resW), str(self.resH))
 
 		# image
 		img_fname = directory + fname + ".jpg"
+
+		print("\nWriting to image.")
 
 		for xy, color in self.pixels:
 			self.image.putpixel(xy, color)
@@ -32,6 +36,8 @@ class RayTracer:
 				mkdir(directory)
 
 			self.image.save(img_fname, "JPEG", quality=99)
+
+			print("Exported => {}\n".format(path.abspath(img_fname)))
 
 			# log
 			with open(directory + "render-logs" + ".log", "a+") as file:
@@ -66,6 +72,7 @@ class RayTracer:
 				file.write("\n\n")
 				file.write("# " * 20)
 				file.write("\n\n")
+
 
 		self.image.show("Image")
 		return
@@ -135,6 +142,21 @@ class RayTracer:
 		color = self.traceray(1, ray)
 		self.pixels.append(((x, y), color.items()))
 		return (x, y), color.items()
+
+	def __str__(self):
+		lst = [
+			self.camera,
+			self.multi,
+			self.light,
+			self.objects,
+			[self.resW, self.resH],
+			self.objects,
+			self.maxlevel,
+			self.reflection,
+			self._export,
+		]
+
+		return "RayTracer({})".format(", ".join(map(str, lst)))
 
 	# DONE
 	def __init__(self, camera: Camera, multi=0, light=None,
@@ -244,26 +266,31 @@ class RayTracer:
 
 
 if __name__ == '__main__':
+	argsHandler = ArgsHandler(argv=argv)
+
+	print(argsHandler.isShow())
+
 	up = Vector(0, -1, 0)
 	fov = 20
 	radius = 30
 	side = radius + 20
 	z = 100
 	top = 70
-	_res = 500, 500
+	_res = argsHandler.getRes()
 	plane_y = -(radius + 10)
 
 	focus = Vector(0, 35, z)
 	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=_res)
-	light = Light(Vector(50, 175, 20), white, intensity=1.0)
+	light = Light(Vector(50, 175, 20), white, intensity=argsHandler.getLightIntensity())
 
 	sp0 = Sphere(Vector(side, 0, z), radius, green_mat)
 	sp1 = Sphere(Vector(0, top, z), radius, blue_mat)
 	sp2 = Sphere(Vector(-side, 0, z), radius, red_mat)
 
+
 	objects = [
 		sp0, sp1, sp2,
-		Plane(Vector(0, -40, 0), up * -1, checkerboard_tex.setsize(15)),
+		Plane(Vector(0, -40, 0), up * -1, materialsContainer[argsHandler.getFloorMaterial()]),
 		Triangle(sp0.center, sp1.center, sp2.center, material=yellow_mat),
 	]
 
@@ -272,10 +299,11 @@ if __name__ == '__main__':
 			light=light,
 			objects=objects,
 			res=_res,
-			reflection=0.2,
-			maxlevel=4,
-			multi=0,
-			export=True
+			reflection=argsHandler.getReflection(),
+			maxlevel=argsHandler.getRecursiveDepth(),
+			multi=argsHandler.getProcesses(),
+			export=argsHandler.isExport(),
+			# dirOut=argsHandler.getDirOut(),
 	)
 
 	rt.start()

@@ -281,12 +281,15 @@ if __name__ == '__main__':
 
 	focus = Vector(0, 35, z)
 	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=_res)
-	light = Light(Vector(50, 175, 20), white, intensity=argsHandler.getLightIntensity())
+	light = Light(Vector(argsHandler.getLightPos()),
+				  argsHandler.getLightColor(),
+				  intensity=argsHandler.getLightIntensity())
 
-	sp0 = Sphere(Vector(side, 0, z), radius, green_mat)
-	sp1 = Sphere(Vector(0, top, z), radius, blue_mat)
-	sp2 = Sphere(Vector(-side, 0, z), radius, red_mat)
+	sp0_col, sp1_col, sp2_col = argsHandler.getSphereColors()
 
+	sp0 = Sphere(Vector(-side, 0, z), radius, sp0_col)  # left
+	sp1 = Sphere(Vector(0, top, z), radius, sp1_col)  # top
+	sp2 = Sphere(Vector(side, 0, z), radius, sp2_col)  # right
 
 	objects = [
 		sp0, sp1, sp2,

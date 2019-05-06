@@ -70,6 +70,8 @@ class Color:
 	__repr__ = __str__
 
 	def __init__(self, r=175, g=175, b=175):
+		if isinstance(r, (list, tuple)):
+			r, g, b = r
 		self.rgb = self.check(r, g, b)
 
 	# behaviour

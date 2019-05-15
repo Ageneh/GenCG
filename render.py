@@ -277,7 +277,7 @@ if __name__ == '__main__':
 	z = 100
 	top = 70
 	_res = argsHandler.getRes()
-	plane_y = -(radius + 10)
+	plane_y = Vector(0, 0, (radius + 10))
 
 	focus = Vector(0, 35, z)
 	camera = Camera(Vector(0, 45, -75), up, focus, fov, res=_res)
@@ -294,7 +294,7 @@ if __name__ == '__main__':
 	objects = [
 		sp0, sp1, sp2,
 		Plane(Vector(0, -40, 0), up * -1, materialsContainer[argsHandler.getFloorMaterial()]),
-		Triangle(sp0.center, sp1.center, sp2.center, material=yellow_mat),
+		Triangle(sp0.center + plane_y, sp1.center + plane_y, sp2.center + plane_y, material=yellow_mat),
 	]
 
 	rt = RayTracer(

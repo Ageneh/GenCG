@@ -1,6 +1,6 @@
 import re
 
-from raytracer.objects import Color
+from raytracer.objects import Color, Material
 
 class ArgsHandler:
 
@@ -71,11 +71,11 @@ class ArgsHandler:
 		ret = self._argvFormatted.get("dirout", None)
 		return ret
 
-	def getProcesses(self):
+	def getProcesses(self) -> int:
 		max = 25
 		ret = self._argvFormatted.get("processes", 4)
 
-		if ret > max: return max
+		if int(ret) > max: return max
 		return int(ret)
 
 	def isShow(self) -> bool:
@@ -112,11 +112,11 @@ class ArgsHandler:
 			return Color(eval(ret))
 		return Color(r=Color._MAX, g=Color._MAX, b=Color._MAX)
 
-	def getFloorMaterial(self):
+	def getFloorMaterial(self) -> Material:
 		ret = self._argvFormatted.get("floormat", "")
 		return ret
 
-	def getSphereColors(self):
+	def getSphereColors(self) -> list:
 		from raytracer.coloring import materialsContainer
 		from random import randint
 		ret = self._argvFormatted.get("spherecolors", None)

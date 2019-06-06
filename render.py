@@ -179,7 +179,6 @@ class RayTracer:
 		self.__mindist = .0001
 		self._export = export
 
-
 	# DONE
 	def traceray(self, level: int, ray: Ray):
 		hitPointData = self.intersect(level, ray)

@@ -75,7 +75,11 @@ class ArgsHandler:
 		max = 25
 		ret = self._argvFormatted.get("processes", 4)
 
-		if int(ret) > max: return max
+		try:
+			if int(ret) > max: return max
+		except ValueError:
+			if not eval(ret):
+				ret = 1
 		return int(ret)
 
 	def isShow(self) -> bool:

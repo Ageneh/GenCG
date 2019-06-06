@@ -110,7 +110,7 @@ class isMaterial:
 
 
 class Material(isMaterial):
-	__SHADOW = .2
+	__SHADOW = .8
 
 	# magic
 

@@ -1,4 +1,4 @@
-from numpy import subtract, cross
+from numpy import subtract, cross, divide, array, concatenate
 
 
 class OBJParser:
@@ -6,15 +6,36 @@ class OBJParser:
     def __init__(self, fpath):
         self.fpath = fpath
         self._obj = {}
+        self.bbox = [[None] * 3, [None] * 3]  # [min, max]
+        self._vbo = []
 
     def getobj(self):
+        # return faces ob object
         return self._obj
 
-    def parse(self):
-        obj = None
+    def getobj_np(self):
+        # return faces ob object as np.array
+        _obj = []
 
-        def calcnormal():
-            return
+        for face in self._obj:
+            points = []
+            for vertex in face:
+                v, vt, vn = list(map(array, vertex))
+                points.append(array([v, vt, vn]))
+
+            _obj.append(array(points))
+
+        return array(_obj)
+
+    def calcboundingbox(self, vertex):
+        # calculate bounding box
+        for idx, axis in enumerate(vertex):
+            if not self.bbox[1][idx] or axis > self.bbox[1][idx]:
+                self.bbox[1][idx] = axis
+            if not self.bbox[0][idx] or axis < self.bbox[0][idx]:
+                self.bbox[0][idx] = axis
+
+    def parse(self):
 
         def face(comp):
             # face line := v/vt/n;
@@ -48,6 +69,7 @@ class OBJParser:
         def vertex(comp):
             """Return a list which defines a vertex."""
             v = list(map(float, comp[1:]))
+            self.calcboundingbox(v)
             return v
 
         def vertexnormal(comp):
@@ -89,6 +111,54 @@ class OBJParser:
 
         return self._obj
 
+    def midofobj(self):
+        center = divide(subtract(self.bbox[1], self.bbox[0]), 2)
+        return center
+
+    def scaletofit(self):
+        scale_factor = max(self.bbox[:2])
+        scaled_points = []
+
+        for face in self._obj:
+            scaled_face = []
+            for point in face:
+                vertex, tex, normal = point
+                vertex = list(divide(vertex, scale_factor))
+                scaled_face.append([vertex, tex, normal])
+            scaled_points.append(scaled_face)
+
+        self._obj = scaled_points
+
+        return scaled_points
+
+    def tocenter(self):
+        center = self.midofobj()
+
+        centered = []
+
+        for face in self.getobj():
+            _moved = []
+            for point in face:
+                vertex, tex, normal = point
+                vertex = list(subtract(vertex, center))
+                _moved.append([vertex, tex, normal])
+            centered.append(_moved)
+
+        self._obj = centered
+
+        return centered
+
+    def getboundingbox(self):
+        return self.bbox
+
+    def vbo(self):
+        vbo = []
+        for face in self.getobj():
+            for v, t, n in face:
+                vbo.append(concatenate((v, n), axis=None))
+        self._vbo = vbo
+        return self._vbo
+
     @staticmethod
     def _calcnormal(face, vertices):
         mid, v1, v2 = list(map(lambda x: vertices[x[0] - 1], face))
@@ -111,8 +181,6 @@ class OBJParser:
         for idx, _face in enumerate(faces):
             # for each unfinished face
             # get all the referenced values and add to face
-
-            points = [x[0] for x in _face]
 
             _calculatedNormal = None
 

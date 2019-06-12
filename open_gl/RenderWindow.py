@@ -27,211 +27,197 @@
 import glfw
 import numpy as np
 from OpenGL.GL import *
-from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-
-class Scene:
-	""" OpenGL 2D scene class """
-
-	# initialization
-	def __init__(self, width, height):
-		# time
-		self.t = 0
-		self.showVector = True
-		self.point = np.array([0, 0])
-		self.vector = np.array([10, 10])
-		self.pointsize = 3
-		self.width = width
-		self.height = height
-		glPointSize(self.pointsize)
-		glLineWidth(self.pointsize)
-
-
-	# step
-	def step(self):
-		# move point
-		self.point = self.point + 0.1 * self.vector
-
-		# check borders
-		if self.point[0] < -self.width / 2:  # point hits left border
-			# mirror at n = [1,0]
-			n = np.array([1, 0])
-			self.vector = self.mirror(self.vector, n)
-		elif self.point[0] > self.width / 2:  # point hits right border
-			# mirrot at n = [-1,0]
-			n = np.array([-1, 0])
-			self.vector = self.mirror(self.vector, n)
-		elif self.point[1] < -self.height / 2:  # point hits upper border
-			# mirrot at n = [0,1]
-			n = np.array([0, 1])
-			self.vector = self.mirror(self.vector, n)
-		elif self.point[1] > self.height / 2:  # point hits lower border
-			# mirrot at n = [0,-1]
-			n = np.array([0, -1])
-			self.vector = self.mirror(self.vector, n)
-
-	# print(self.point, self.vector)
-
-	# mirror a vector v at plane with normal n
-	def mirror(self, v, n):
-		# normalize n
-		normN = n / np.linalg.norm(n)
-		# project negative v on n
-		l = np.dot(-v, n)
-		# mirror v
-		mv = v + 2 * l * n
-		return mv
-
-
-	# render
-	def render(self):
-		# render a point
-		glBegin(GL_POINTS)
-		glColor(0.0, 0.0, 1.0)
-		glVertex2fv(self.point)
-		glEnd()
-
-		# render the vector starting at the point
-		if self.showVector:
-			glColor(1.0, 0.0, 0.0)
-			glBegin(GL_LINES)
-			# the line from the point to the end of the vector
-			glVertex2fv(self.point)
-			glVertex2fv(self.point + self.vector)
-
-			# make an arrow at the tip of the vector
-			normvector = self.vector / np.linalg.norm(self.vector)
-			rotnormvec = np.array([-normvector[1], normvector[0]])
-			p1 = self.point + self.vector - 6 * normvector
-			a = p1 + 3 * self.pointsize / 2 * rotnormvec
-			b = p1 - 3 * self.pointsize / 2 * rotnormvec
-			glVertex2fv(self.point + self.vector)
-			glVertex2fv(a)
-			glVertex2fv(self.point + self.vector)
-			glVertex2fv(b)
-			glEnd()
+POINTS = []
 
 
 class RenderWindow:
-	"""GLFW Rendering window class"""
+    """GLFW Rendering window class"""
 
-	def __init__(self):
+    def __init__(self):
 
-		# save current working directory
-		cwd = os.getcwd()
+        # save current working directory
+        cwd = os.getcwd()
 
-		# Initialize the library
-		if not glfw.init():
-			return
+        # Initialize the library
+        if not glfw.init():
+            return
 
-		# restore cwd
-		os.chdir(cwd)
+        # restore cwd
+        os.chdir(cwd)
 
-		# version hints
-		# glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
-		# glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
-		# glfw.WindowHint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
-		# glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        # version hints
+        # glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
+        # glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
+        # glfw.WindowHint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
+        # glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
 
-		# buffer hints
-		glfw.window_hint(glfw.DEPTH_BITS, 32)
+        # buffer hints
+        glfw.window_hint(glfw.DEPTH_BITS, 32)
 
-		# define desired frame rate
-		self.frame_rate = 100
+        # define desired frame rate
+        self.frame_rate = 100
 
-		# make a window
-		self.width, self.height = 640, 480
-		self.aspect = self.width / float(self.height)
-		self.window = glfw.create_window(self.width, self.height, "2D Graphics", None, None)
-		if not self.window:
-			glfw.terminate()
-			return
+        # make a window
+        self.width, self.height = 640, 480
+        self.aspect = self.width / float(self.height)
+        self.window = glfw.create_window(self.width, self.height, "2D Graphics", None, None)
+        if not self.window:
+            glfw.terminate()
+            return
 
-		# Make the window's context current
-		glfw.make_context_current(self.window)
+        # Make the window's context current
+        glfw.make_context_current(self.window)
 
-		# initialize GL
-		glViewport(0, 0, self.width, self.height)
-		glEnable(GL_DEPTH_TEST)
-		glClearColor(1.0, 1.0, 1.0, 1.0)
-		glMatrixMode(GL_PROJECTION)
-		glOrtho(-self.width / 2, self.width / 2, -self.height / 2, self.height / 2, -2, 2)
-		glMatrixMode(GL_MODELVIEW)
+        # initialize GL
+        glViewport(0, 0, self.width, self.height)
+        glEnable(GL_DEPTH_TEST)
+        # lLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 1.0, 0.0))
+        # glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.3, 0.3, 1.0, 0.0))
+        # glLightfv(GL_LIGHT0, GL_SPECULAR, (0.4, 0.4, 1.0, 0.0))
 
-		# set window callbacks
-		glfw.set_mouse_button_callback(self.window, self.onMouseButton)
-		glfw.set_key_callback(self.window, self.onKeyboard)
-		glfw.set_window_size_callback(self.window, self.onSize)
+        glLightfv(GL_LIGHT0, GL_POSITION, [-1, 2, 1.0, 1.0])
 
-		# create 3D
-		self.scene = Scene(self.width, self.height)
+        # glEnable(GL_COLOR_MATERIAL)
+        # glMateriali(GL_FRONT, GL_SHININESS, 128)
+        glShadeModel(GL_SMOOTH)
+        glFrontFace(GL_CCW)
+        glEnable(GL_BLEND)
 
-		# exit flag
-		self.exitNow = False
+        glEnable(GL_CULL_FACE)
+        # glEnable(GL_LIGHTING)
+        # glEnable(GL_LIGHT0)
 
-		# animation flag
-		self.animation = True
+        glEnable(GL_NORMALIZE)
+        glEnable(GL_AUTO_NORMAL)
+        glEnable(GL_BLEND)
 
+        glClearColor(1.0, 1.0, 1.0, 1.0)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        # glOrtho(-self.width / 2, self.width / 2, -self.height / 2, self.height / 2, -1.5, 1.5)
+        glOrtho(-1.5, 1.5, -1.5, 1.5, -1.5, 1.5)  # multiply with new p-matrix
+        # glOrtho(-3, 3, -2, 2, 1, -1)
 
-	def onMouseButton(self, win, button, action, mods):
-		print("mouse button: ", win, button, action, mods)
+        glMatrixMode(GL_MODELVIEW)
 
+        # set window callbacks
+        glfw.set_mouse_button_callback(self.window, self.onMouseButton)
+        glfw.set_key_callback(self.window, self.onKeyboard)
+        glfw.set_window_size_callback(self.window, self.onSize)
 
-	def onKeyboard(self, win, key, scancode, action, mods):
-		print("keyboard: ", win, key, scancode, action, mods)
-		if action == glfw.PRESS:
-			# ESC to quit
-			if key == glfw.KEY_ESCAPE:
-				self.exitNow = True
-			if key == glfw.KEY_V:
-				# toggle show vector
-				self.scene.showVector = not self.scene.showVector
-			if key == glfw.KEY_A:
-				# toggle animation
-				self.animation = not self.animation
+        # exit flag
+        self.exitNow = False
 
+        # animation flag
+        self.animation = False
 
-	def onSize(self, win, width, height):
-		print("onsize: ", win, width, height)
-		self.width = width
-		self.height = height
-		self.aspect = width / float(height)
-		glViewport(0, 0, self.width, self.height)
+    def onMouseButton(self, win, button, action, mods):
+        print("mouse button: ", win, button, action, mods)
 
+    def onKeyboard(self, win, key, scancode, action, mods):
+        print("keyboard: ", win, key, scancode, action, mods)
+        if action == glfw.PRESS:
+            # ESC to quit
+            if key == glfw.KEY_ESCAPE:
+                self.exitNow = True
+            if key == glfw.KEY_LEFT:
+                glRotate(5, 0, 1, 0)
+            if key == glfw.KEY_RIGHT:
+                glRotate(-5, 0, 1, 0)
+            if key == glfw.KEY_UP:
+                glRotate(5, 1, 0, 0)
+            if key == glfw.KEY_DOWN:
+                glRotate(-5, 1, 0, 0)
 
-	def run(self):
-		# initializer timer
-		glfw.set_time(0.0)
-		t = 0.0
-		while not glfw.window_should_close(self.window) and not self.exitNow:
-			# update every x seconds
-			currT = glfw.get_time()
-			if currT - t > 1.0 / self.frame_rate:
-				# update time
-				t = currT
-				# clear
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    def onSize(self, win, width, height):
+        print("onsize: ", win, width, height)
+        self.width = width
+        self.height = height
+        self.aspect = width / float(height)
+        glViewport(0, 0, self.width, self.height)
 
-				# render scene
-				if self.animation:
-					self.scene.step()
-				self.scene.render()
+    def run(self, vbo):
+        global POINTS
+        ftest = []
+        normals = []
 
-				glfw.swap_buffers(self.window)
-				# Poll for and process events
-				glfw.poll_events()
-		# end
-		glfw.terminate()
+        ftest = np.array(ftest)
+        print(ftest)
+
+        length = int(v.shape[0] / 3)
+        v = v.reshape(length, 3)
+
+        if len(normals) == 0:
+            normals = np.zeros(length * 3).reshape(length, 3)
+
+            for face in ftest:
+                n = np.cross(v[face[0]] - v[face[2]], v[face[2]] - v[face[1]])
+                normals[face[0]] += n
+                normals[face[1]] += n
+                normals[face[2]] += n
+
+        print(normals)
+
+        for i in normals:
+            i[0] = i[0] / np.linalg.norm(i)
+            i[1] = i[1] / np.linalg.norm(i)
+            i[2] = i[2] / np.linalg.norm(i)
+
+        boundingBox = BoundingBox(v)
+        boundingBox.moveToCenter()
+        boundingBox.scale()
+
+        POINTS = boundingBox.points
+
+        points = vbo.VBO(np.array(POINTS, 'f'))
+        fv = np.array(ftest)
+        vn = vbo.VBO(normals)
+
+        while not glfw.window_should_close(self.window) and not self.exitNow:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor(0.4, 0.0, 0.0)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+
+            # glEnableClientState(GL_NORMAL_ARRAY)
+            # vn.bind()
+            # glNormalPointer(GL_FLOAT, 12, vn)
+
+            glEnableClientState(GL_VERTEX_ARRAY)
+            points.bind()
+            glVertexPointer(3, GL_FLOAT, 0, points)
+            glDrawArrays(GL_POINTS, 0, len(points))
+
+            glEnableClientState(GL_INDEX_ARRAY)
+            glColor4f(0.0, .0, .5, 0.2)
+
+            glDrawElements(GL_TRIANGLES, int(ftest.shape[0]) * 3, GL_UNSIGNED_INT, fv)
+
+            points.unbind()
+            # vn.unbind()
+            glDisableClientState(GL_NORMAL_ARRAY)
+            glDisableClientState(GL_VERTEX_ARRAY)
+            glDisableClientState(GL_INDEX_ARRAY)
+            glFlush()
+
+            glfw.swap_buffers(self.window)
+            glfw.poll_events()
+        # end
+        glfw.terminate()
 
 
 # main() function
 def main():
-	print("Simple glfw render Window")
-	rw = RenderWindow()
-	rw.run()
+    if len(sys.argv) != 2:
+        sys.exit(-1)
+
+    print("Simple glfw render Window")
+    rw = RenderWindow()
+    file = sys.argv[1]
+    rw.run(file)
 
 
 # call main
 if __name__ == '__main__':
-	main()
+    main()

@@ -25,9 +25,10 @@
 """
 
 import glfw
-import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLUT import *
+
+from lab.scene import Scene
 
 POINTS = []
 
@@ -60,7 +61,7 @@ class RenderWindow:
         self.frame_rate = 100
 
         # make a window
-        self.width, self.height = 640, 480
+        self.width, self.height = 600, 600
         self.aspect = self.width / float(self.height)
         self.window = glfw.create_window(self.width, self.height, "2D Graphics", None, None)
         if not self.window:
@@ -76,6 +77,9 @@ class RenderWindow:
         # lLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 1.0, 0.0))
         # glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.3, 0.3, 1.0, 0.0))
         # glLightfv(GL_LIGHT0, GL_SPECULAR, (0.4, 0.4, 1.0, 0.0))
+
+        glClearColor(1.0, 1.0, 1.0, 1.0)
+        glMatrixMode(GL_PROJECTION)
 
         glLightfv(GL_LIGHT0, GL_POSITION, [-1, 2, 1.0, 1.0])
 
@@ -107,6 +111,9 @@ class RenderWindow:
         glfw.set_key_callback(self.window, self.onKeyboard)
         glfw.set_window_size_callback(self.window, self.onSize)
 
+        # create 3D
+        self.scene = Scene(self.width, self.height)
+
         # exit flag
         self.exitNow = False
 
@@ -137,87 +144,37 @@ class RenderWindow:
         self.height = height
         self.aspect = width / float(height)
         glViewport(0, 0, self.width, self.height)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        if width <= height:
+            glOrtho(-1.5, 1.5,
+                    -1.5 * height / width, 1.5 * height / width,
+                    -1.0, 1.0)
+        else:
+            glOrtho(-1.5 * self.aspect, 1.5 * self.aspect,
+                    -1.5, 1.5,
+                    -1.0, 1.0)
+        glMatrixMode(GL_MODELVIEW)
 
     def run(self, vbo):
-        global POINTS
-        ftest = []
-        normals = []
-
-        ftest = np.array(ftest)
-        print(ftest)
-
-        length = int(v.shape[0] / 3)
-        v = v.reshape(length, 3)
-
-        if len(normals) == 0:
-            normals = np.zeros(length * 3).reshape(length, 3)
-
-            for face in ftest:
-                n = np.cross(v[face[0]] - v[face[2]], v[face[2]] - v[face[1]])
-                normals[face[0]] += n
-                normals[face[1]] += n
-                normals[face[2]] += n
-
-        print(normals)
-
-        for i in normals:
-            i[0] = i[0] / np.linalg.norm(i)
-            i[1] = i[1] / np.linalg.norm(i)
-            i[2] = i[2] / np.linalg.norm(i)
-
-        boundingBox = BoundingBox(v)
-        boundingBox.moveToCenter()
-        boundingBox.scale()
-
-        POINTS = boundingBox.points
-
-        points = vbo.VBO(np.array(POINTS, 'f'))
-        fv = np.array(ftest)
-        vn = vbo.VBO(normals)
-
+        glfw.set_time(0.0)
+        time = 0.0
         while not glfw.window_should_close(self.window) and not self.exitNow:
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            glColor(0.4, 0.0, 0.0)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            # update every x seconds
+            now = glfw.get_time()
+            if now - time > 1.0 / self.frame_rate:
+                # update time
+                time = now
+                # clear
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            # glEnableClientState(GL_NORMAL_ARRAY)
-            # vn.bind()
-            # glNormalPointer(GL_FLOAT, 12, vn)
+                # render scene
+                if self.animation:
+                    self.scene.step()
+                self.scene.render(vbo)
 
-            glEnableClientState(GL_VERTEX_ARRAY)
-            points.bind()
-            glVertexPointer(3, GL_FLOAT, 0, points)
-            glDrawArrays(GL_POINTS, 0, len(points))
-
-            glEnableClientState(GL_INDEX_ARRAY)
-            glColor4f(0.0, .0, .5, 0.2)
-
-            glDrawElements(GL_TRIANGLES, int(ftest.shape[0]) * 3, GL_UNSIGNED_INT, fv)
-
-            points.unbind()
-            # vn.unbind()
-            glDisableClientState(GL_NORMAL_ARRAY)
-            glDisableClientState(GL_VERTEX_ARRAY)
-            glDisableClientState(GL_INDEX_ARRAY)
-            glFlush()
-
-            glfw.swap_buffers(self.window)
-            glfw.poll_events()
+                glfw.swap_buffers(self.window)
+                # Poll for and process events
+                glfw.poll_events()
         # end
         glfw.terminate()
-
-
-# main() function
-def main():
-    if len(sys.argv) != 2:
-        sys.exit(-1)
-
-    print("Simple glfw render Window")
-    rw = RenderWindow()
-    file = sys.argv[1]
-    rw.run(file)
-
-
-# call main
-if __name__ == '__main__':
-    main()

@@ -1,4 +1,4 @@
-from numpy import subtract, cross, divide, array, concatenate
+from numpy import subtract, cross, divide, array, concatenate, median
 
 
 class OBJParser:
@@ -111,9 +111,27 @@ class OBJParser:
 
         return self._obj
 
-    def midofobj(self):
+    def calcmidofobj(self):
         center = divide(subtract(self.bbox[1], self.bbox[0]), 2)
-        return center
+        print "subtracted", center
+        center = list(map(median, zip(self.bbox[1], self.bbox[0])))
+        print "median", center
+        self._center = center
+        return self._center
+
+    def scaletocanonical(self):
+        longest = max(self.bbox[0])
+
+        _scaled = []
+        for face in self.getobj():
+            _s = []
+            for point in face:
+                vertex, tex, normal = point
+                vertex = divide(vertex, abs(longest * 3))
+                _s.append([vertex, tex, normal])
+            _scaled.append(_s)
+
+        return _scaled
 
     def scaletofit(self):
         scale_factor = max(self.bbox[:2])
@@ -132,7 +150,7 @@ class OBJParser:
         return scaled_points
 
     def tocenter(self):
-        center = self.midofobj()
+        center = self.calcmidofobj()
 
         centered = []
 
@@ -146,14 +164,17 @@ class OBJParser:
 
         self._obj = centered
 
-        return centered
+        self._obj = self.scaletocanonical()
+
+        return self._obj
 
     def getboundingbox(self):
         return self.bbox
 
     def vbo(self):
         vbo = []
-        for face in self.getobj():
+        # for face in self.getobj():
+        for face in self.tocenter():
             for v, t, n in face:
                 vbo.append(concatenate((v, n), axis=None))
         self._vbo = vbo

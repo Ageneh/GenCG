@@ -59,7 +59,7 @@ class RenderWindow:
         }
 
         # make a window
-        self.width, self.height = 600, 600
+        self.width, self.height = 550, 550
         self.aspect = self.width / float(self.height)
         self.window = glfw.create_window(self.width, self.height, "2D Graphics", None, None)
         if not self.window:
@@ -75,15 +75,16 @@ class RenderWindow:
         self.mouseLeft = False
         self.mouseRight = False
         self.rotationVal = (0, 0, 0)
-        self.startPos = (0, 0)
+        self.mousePos = (0, 0)
         self.scalefactor = 0
         self.frame_rate = 100  # define desired frame rate
+        self.mouseSensititvity = 5
 
         # set window callbacks
         os.chdir(cwd)  # restore cwd
         self.initGLFW()
         self.initGL()
-        self.scene.translate(0, -1)
+        self.projectionperspective()
 
     # DONE
     def initGLFW(self):
@@ -100,21 +101,16 @@ class RenderWindow:
         # initialize GL
         glViewport(0, 0, self.width, self.height)
         glEnable(GL_DEPTH_TEST)
-
         glClearColor(1.0, 1.0, 1.0, 1.0)
-
         glLightfv(GL_LIGHT0, GL_POSITION, [-1, 2, 1.0, 1.0])
-
         glEnable(GL_COLOR_MATERIAL)
         glMateriali(GL_FRONT, GL_SHININESS, 128)
         glShadeModel(GL_SMOOTH)
         glFrontFace(GL_CCW)
         glEnable(GL_BLEND)
-
         glEnable(GL_CULL_FACE)
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
-
         glEnable(GL_NORMALIZE)
         glEnable(GL_AUTO_NORMAL)
         glEnable(GL_BLEND)
@@ -124,105 +120,53 @@ class RenderWindow:
             0.0, 1.0, 0.0
         )
 
-        self.projectionperspective()
-
     # DONE
     def onMouseButton(self, win, button, action, mods):
-
-        # print("mouse button: ", win, button, action, mods)
-        # if button == glfw.MOUSE_BUTTON_LEFT:
-        #     if action == glfw.PRESS:
-        #         self.pressed = True
-        #     elif action == glfw.RELEASE:
-        #         self.pressed = False
-        #         self.scene.rotate(self.scene.angle, self.scene.axis)
-        #         self.scene.angle = 0
-
         if button == glfw.MOUSE_BUTTON_LEFT:
             if action == glfw.PRESS:
                 self.mouseLeft = True
+                return
             elif action == glfw.RELEASE:
                 self.mouseLeft = False
                 self.scene.rotate()
                 self.scene.angle = 0
+                return
         elif button == glfw.MOUSE_BUTTON_RIGHT:
             if action == glfw.PRESS:
                 self.mouseRight = True
+                return
             elif action == glfw.RELEASE:
                 self.mouseRight = False
-
-        # if action == glfw.PRESS:
-        #     if button == glfw.MOUSE_BUTTON_LEFT:
-        #         self.mouseLeft = True
-        #     if button == glfw.MOUSE_BUTTON_RIGHT:
-        #         self.mouseRight = True
-        # elif action == glfw.RELEASE:
-        #     if button == glfw.MOUSE_BUTTON_LEFT:
-        #         self.mouseLeft = False
-        #         # self.scene.rotate()
-        #         self.scene.rotate(self.scene.angle, self.scene.axis)
-        #         self.scene.angle = 0
-        #     if button == glfw.MOUSE_BUTTON_RIGHT:
-        #         self.mouseRight = False
-
-    # DONE
-    def onMouseMove1(self, window, x, y):
-        r = min(self.width, self.height) / 2.0
-
-        if self.mouseLeft:
-            rotation_current_point = self.projectontosphere(x, y, r)
-
-            if rotation_current_point == self.rotationVal:
                 return
-
-            self.scene.rotationAngle = arccos(dot(self.rotationVal, rotation_current_point))
-            self.scene.rotation_axis = cross(self.rotationVal, rotation_current_point)
-
-        if self.mouseRight:
-            x_dir, y_dir = x - self.startPos[0], self.startPos[1] - y
-            self.scene.translate(x_dir / self.width, y_dir / self.height)
-
-        self.rotationVal = self.projectontosphere(x, y, r)
-        self.startPos = (x, y)
-
-        return self.rotationVal
 
     # DONE
     def onMouseMove(self, window, x, y):
         r = min(self.width, self.height) / 2.0
 
         if self.mouseLeft:
-            moveP = self.projectontosphere(x, y, r)
-            self.scene.angle = arccos(dot(self.rotationVal, moveP))
-            self.scene.axis = cross(self.rotationVal, moveP)
+            rotationOfProjection = self.projectontosphere(x, y, r)
+            self.scene.angle = arccos(dot(self.rotationVal, rotationOfProjection))
+            self.scene.axis = cross(self.rotationVal, rotationOfProjection)
 
         if self.mouseRight:
-            movementDelta = x - self.movement[0], self.movement[1] - y
+            movementDelta = x - self.mousePos[0], self.mousePos[1] - y
             xDelta, yDelta = movementDelta
-            self.scene.translate(xDelta / self.width, yDelta / self.height)
+            self.scene.translate(self.mouseSensititvity * (xDelta / self.width),
+                                 self.mouseSensititvity * (yDelta / self.height))
 
         self.rotationVal = self.projectontosphere(x, y, r)
-        # print("moved", self.movement, x, y)
-        self.movement = (x, y)
-
-        # r = min(self.width, self.height) / 2.0
-        # if self.pressed:
-        #     moveP = self.projectontosphere(x, y, r)
-        #     self.scene.angle = arccos(dot(self.startP, moveP))
-        #     self.scene.axis = cross(self.startP, moveP)
-        # self.startP = self.projectontosphere(y, y, r)
+        self.mousePos = (x, y)
         return self.rotationVal
 
     # DONE
     def onScroll(self, window, x, y):
-        # self.scene.translate(10 * (x / self.width), 0)
         self.scalefactor += y if y > 0 else -(self.scalefactor - y)
         self.scene.scale(self.scalefactor)
 
     # DONE
     def onKeyboard(self, win, key, scancode, action, mods):
         if key == glfw.KEY_ESCAPE:
-            self.exit_now = True
+            self.exitNow = True
             return
         elif key == glfw.KEY_LEFT_SHIFT or key == glfw.KEY_RIGHT_SHIFT:
             self.setBGColor = True if action == glfw.PRESS else False
@@ -243,8 +187,7 @@ class RenderWindow:
             return
 
     # DONE
-    def onSize(self, win, width, height):
-        # print("onsize: {}, {}, {}".format(win, width, height))
+    def onSize(self, window, width, height):
         self.width = width
         self.height = height
         self.aspect = width / float(height)
@@ -286,7 +229,6 @@ class RenderWindow:
                 -n, n,
                 -2.0, 5.0
             )
-
         glMatrixMode(GL_MODELVIEW)
 
     # DONE
@@ -309,7 +251,6 @@ class RenderWindow:
                 -n, n,
                 n, n * 10
             )
-
         glMatrixMode(GL_MODELVIEW)
 
     # DONE

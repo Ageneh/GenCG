@@ -1,4 +1,4 @@
-from numpy import subtract, cross, divide, array, concatenate, median
+from numpy import subtract, cross, divide, array, concatenate, median, add
 
 
 class OBJParser:
@@ -127,7 +127,7 @@ class OBJParser:
             _s = []
             for point in face:
                 vertex, tex, normal = point
-                vertex = divide(vertex, abs(longest * 3))
+                vertex = divide(vertex, abs(longest * 2))
                 _s.append([vertex, tex, normal])
             _scaled.append(_s)
 
@@ -168,13 +168,33 @@ class OBJParser:
 
         return self._obj
 
+    def toorigin(self):
+        center = self.calcmidofobj()
+        moveUp = (self.bbox[1][1] - self.bbox[0][1]) / 2
+
+        centered = []
+
+        for face in self.getobj():
+            _moved = []
+            for point in face:
+                vertex, tex, normal = point
+                vertex = list(add(vertex, moveUp))
+                _moved.append([vertex, tex, normal])
+            centered.append(_moved)
+
+        self._obj = centered
+        self._obj = self.scaletocanonical()
+
+        return self._obj
+
     def getboundingbox(self):
         return self.bbox
 
     def vbo(self):
         vbo = []
         # for face in self.getobj():
-        for face in self.tocenter():
+        # for face in self.tocenter():
+        for face in self.toorigin():
             for v, t, n in face:
                 vbo.append(concatenate((v, n), axis=None))
         self._vbo = vbo

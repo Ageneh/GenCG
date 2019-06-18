@@ -13,7 +13,7 @@ def err():
 
 
 if __name__ == '__main__':
-    fpath = argv[1] if len(argv) > 2 else err()
+    fpath = argv[1] if len(argv) > 1 else err()
 
     objparser = OBJParser(fpath)
     objparser.parse()

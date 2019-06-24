@@ -1,5 +1,3 @@
-from sys import argv
-
 from open_gl.OBJParser import OBJParser
 from open_gl.RenderWindow import RenderWindow
 
@@ -13,7 +11,10 @@ def err():
 
 
 if __name__ == '__main__':
-    fpath = argv[1] if len(argv) > 1 else err()
+    # fpath = argv[1] if len(argv) > 1 else err()
+    fpath = "./objects/bunny.obj"
+    fpath = "./objects/cow.obj"
+    fpath = "./objects/elephant.obj"
 
     objparser = OBJParser(fpath)
     objparser.parse()

@@ -123,6 +123,9 @@ class RenderWindow:
     # DONE
     def onMouseButton(self, win, button, action, mods):
         if button == glfw.MOUSE_BUTTON_LEFT:
+
+            print win, button, action
+
             if action == glfw.PRESS:
                 self.mouseLeft = True
                 return
@@ -142,6 +145,10 @@ class RenderWindow:
     # DONE
     def onMouseMove(self, window, x, y):
         r = min(self.width, self.height) / 2.0
+
+        if x in self.mousePos or y in self.mousePos:
+            self.scene.angle = 0
+            return
 
         if self.mouseLeft:
             rotationOfProjection = self.projectontosphere(x, y, r)

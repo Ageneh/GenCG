@@ -78,13 +78,14 @@ class RenderWindow:
         self.mousePos = (0, 0)
         self.scalefactor = 0
         self.frame_rate = 100  # define desired frame rate
-        self.mouseSensititvity = 5
+        self.mouseSensititvity = 3
 
         # set window callbacks
         os.chdir(cwd)  # restore cwd
         self.initGLFW()
         self.initGL()
-        self.projectionperspective()
+        # self.projectionperspective()
+        self.projectionorthogonal()
 
     # DONE
     def initGLFW(self):
@@ -108,14 +109,14 @@ class RenderWindow:
         glShadeModel(GL_SMOOTH)
         glFrontFace(GL_CCW)
         glEnable(GL_BLEND)
-        glEnable(GL_CULL_FACE)
+        # glEnable(GL_CULL_FACE)
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glEnable(GL_NORMALIZE)
         glEnable(GL_AUTO_NORMAL)
         glEnable(GL_BLEND)
         gluLookAt(
-            0.0, 2.0, 2,
+            0.0, 1.0, 4,
             0, 0, 0.0,
             0.0, 1.0, 0.0
         )
@@ -224,17 +225,18 @@ class RenderWindow:
         glLoadIdentity()
 
         n = 1.5
+        aspect = self.height / self.width if self.width <= self.height else self.width / self.height
         if self.width <= self.height:
             glOrtho(
                 -n, n,
-                -n * self.height / self.width, n * self.height / self.width,
-                -2.0, 5.0
+                -n * aspect, n * aspect,
+                -2.0, 20.0
             )
         else:
             glOrtho(
-                -n * self.width / self.height, n * self.width / self.height,
+                -n * aspect, n * aspect,
                 -n, n,
-                -2.0, 5.0
+                -2.0, 20.0
             )
         glMatrixMode(GL_MODELVIEW)
 
@@ -244,11 +246,12 @@ class RenderWindow:
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
 
+        aspect = self.height / self.width if self.width <= self.height else self.width / self.height
         if self.width <= self.height:
             n = 0.5
             glFrustum(
                 -n, n,
-                -n * self.height / self.width, n * self.height / self.width,
+                -n * aspect, n * aspect,
                 n, n * 10
             )
         else:
@@ -272,7 +275,6 @@ class RenderWindow:
                 time = now
                 # clear
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
                 self.scene.render(vbo)
 
                 glfw.swap_buffers(self.window)

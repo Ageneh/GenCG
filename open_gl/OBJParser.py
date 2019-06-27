@@ -184,7 +184,7 @@ class OBJParser:
     def toorigin(self):
         center = self.calcmidofobj()
         self.bbox = [list(subtract(box, center)) for box in self.bbox]
-        moveUp = (self.bbox[1][1] - self.bbox[0][1]) / 2
+        moveUp = [0, (self.bbox[1][1] - self.bbox[0][1]) / 2, 0]
 
         centered = []
 
@@ -248,14 +248,21 @@ class OBJParser:
 
                 if normalidx:
                     _normal = normals[normalidx - 1]
-                elif _calculatedNormal:
-                    _normal = _calculatedNormal
+                    _assembledentry.append([_vertex, _texture, _normal])
                 else:
                     # calculate normal for vertex by using all three points of face
                     _normal = OBJParser._calcnormal(_face, vertices)
                     _calculatedNormal = _normal
+                    # set normal for all three faces
+                    break
 
-                _assembledentry.append([_vertex, _texture, _normal])
+            if _calculatedNormal:
+                for idx, _vertix in enumerate(_face):
+                    vertexidx, texidx, normalidx = _vertix
+                    _vertex = vertices[vertexidx - 1] if vertexidx else None
+                    _texture = textures[texidx - 1] if texidx else None
+                    _normal = _calculatedNormal
+                    _assembledentry.append([_vertex, _texture, _normal])
 
             _faces.append(_assembledentry)
 

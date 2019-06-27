@@ -13,8 +13,8 @@ def err():
 if __name__ == '__main__':
     # fpath = argv[1] if len(argv) > 1 else err()
     fpath = "./objects/bunny.obj"
-    fpath = "./objects/cow.obj"
     fpath = "./objects/elephant.obj"
+    fpath = "./objects/cow.obj"
 
     objparser = OBJParser(fpath)
     objparser.parse()

@@ -14,7 +14,7 @@ class Scene:
         self.angle = 0.
         self.axis = array([0., 1., 0.])
         self.color = (.5, .5, .5)
-        self.hasShadow = True
+        self.hasShadow = False
         self.light = (10, 10, 10)
         self.p = [
             1., 0, 0, 0,

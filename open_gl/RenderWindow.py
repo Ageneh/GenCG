@@ -124,9 +124,6 @@ class RenderWindow:
     # DONE
     def onMouseButton(self, win, button, action, mods):
         if button == glfw.MOUSE_BUTTON_LEFT:
-
-            print win, button, action
-
             if action == glfw.PRESS:
                 self.mouseLeft = True
                 return

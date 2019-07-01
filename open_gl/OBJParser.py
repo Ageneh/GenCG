@@ -120,8 +120,8 @@ class OBJParser:
 
     # DONE
     def calcmidofobj(self):
-        center = divide(subtract(self.bbox[1], self.bbox[0]), 2)
-        print "subtracted", center
+        # center = divide(subtract(self.bbox[1], self.bbox[0]), 2)
+        # print "subtracted", center
         center = list(map(median, zip(self.bbox[1], self.bbox[0])))
         print "median", center
         self._center = center
@@ -185,7 +185,6 @@ class OBJParser:
         center = self.calcmidofobj()
         self.bbox = [list(subtract(box, center)) for box in self.bbox]
         moveUp = [0, (self.bbox[1][1] - self.bbox[0][1]) / 2, 0]
-
         centered = []
 
         for face in self.getobj():

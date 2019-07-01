@@ -1,1 +1,1 @@
-# Generatvie Computergrafik
+# Generative Computergrafik

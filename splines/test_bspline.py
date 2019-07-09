@@ -102,15 +102,10 @@ class RenderWindow:
                 return
             if self._shift:
                 self.scene.increase(Scene.PARAM_POINTS)
-                print "increase point count"
             else:
-                if pointcount > len(self.scene.knot_vector):
-                    # if enough points have been added
-                    self.scene.set_param(Scene.PARAM_POINTS, len(self.scene.knot_vector))
-
                 if pointcount > 2:
+                    # needs to be at least 1 or else last section will be cut off
                     self.scene.decrease(Scene.PARAM_POINTS)
-
             return
         elif key == glfw.KEY_K:
             if action == glfw.RELEASE:
@@ -122,8 +117,8 @@ class RenderWindow:
                 self.scene.decrease(Scene.PARAM_DEGREE)
             return
         elif key == glfw.KEY_R:
+            # reset points
             if action == glfw.RELEASE:
                 return
-            # reset points
             self.scene.reset_errythang()
             return

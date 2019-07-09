@@ -3,6 +3,10 @@
 **/.DS_Store
 **/._.DS_Store
 *.pdf
+**/__*/
+TODO.md
+*.pyc
+misc/
 
 ###################
 

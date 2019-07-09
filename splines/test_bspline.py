@@ -1,6 +1,7 @@
+import os
+
 import glfw
 import numpy as np
-import os
 from OpenGL.GL import *
 from OpenGL.arrays import vbo
 
@@ -9,6 +10,7 @@ class Scene:
     PARAM_DEGREE = "degree"
     PARAM_POINTS = "pointCount"
 
+    # DONE
     def __init__(self):
         self.values = {
             Scene.PARAM_DEGREE: 3,
@@ -21,13 +23,14 @@ class Scene:
             },
             Scene.PARAM_POINTS: {
                 "min": 1,
-                "max": lambda: self.get_degree(),
+                "max": lambda: 50,
             },
         }
         self.points = []
         self.curvepoints = []
         self.knotvector = []
 
+    # DONE
     def render(self):
         glClear(GL_COLOR_BUFFER_BIT)
 
@@ -45,16 +48,16 @@ class Scene:
             glDrawArrays(GL_LINE_STRIP, 0, len(self.points))
 
         if len(self.points) >= self.get_param(self.PARAM_DEGREE):
-            curveVbo = vbo.VBO(np.array(self.curvepoints, 'f'))
-            curveVbo.bind()
+            spline = vbo.VBO(np.array(self.curvepoints, 'f'))
+            spline.bind()
 
             glEnableClientState(GL_VERTEX_ARRAY)
-            glVertexPointer(2, GL_FLOAT, 0, curveVbo)
+            glVertexPointer(2, GL_FLOAT, 0, spline)
 
             glColor([1.0, 0, 0])
 
             glDrawArrays(GL_LINE_STRIP, 0, len(self.curvepoints))
-            curveVbo.unbind()
+            spline.unbind()
 
         myVbo.unbind()
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -106,13 +109,15 @@ class Scene:
 
         else:
             w1 = self.calc_w(knotvector, j, n - degree + 1, t)
-            w2 = self.calc_w(knotvector, j, n - degree + 1, t)
+            w2 = w1
+            # w2 = self.calc_w(knotvector, j, n - degree + 1, t)
 
             d1 = self.deboor(degree - 1, controlpoints, knotvector, j - 1, t)
             d2 = self.deboor(degree - 1, controlpoints, knotvector, j, t)
 
             return (1 - w1) * d1 + w2 * d2
 
+    # DONE
     def calc_w(self, knotvector, i, n, t):
         if knotvector[i] < knotvector[i + n]:
             return (t - knotvector[i]) / (knotvector[i + n] - knotvector[i])
@@ -134,8 +139,8 @@ class Scene:
     def decrease(self, param):
         if param not in self.values.keys():
             return
-        if self.values[param] < 2:  # degree has to be at least 2
-            return
+        # if self.values[param] < 2:  # degree has to be at least 2
+        #     return
 
         if param in self.valueLimits.keys():
             if self.get_param(param) <= self.valueLimits[param]["min"]:  # degree has to be at least 2
@@ -161,8 +166,14 @@ class Scene:
             return
         self.values[param] = val
 
+    # DONE
+    def add_point(self, points):
+        self.points.append(points)
+        self.increase(Scene.PARAM_POINTS)
+
 
 class RenderWindow:
+
     def __init__(self):
         # save current working directory
         cwd = os.getcwd()
@@ -173,12 +184,6 @@ class RenderWindow:
 
         # restore cwd
         os.chdir(cwd)
-
-        # version hints
-        # glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 3)
-        # glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 3)
-        # glfw.WindowHint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
-        # glfw.WindowHint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
 
         # buffer hints
         glfw.window_hint(glfw.DEPTH_BITS, 32)
@@ -199,16 +204,18 @@ class RenderWindow:
 
         self.scene = Scene()
 
-        self.shiftFlag = False
-        self.exitNow = False
-        self.render = False
+        self._shift = False
+        self._exit = False
+        self._render = False
 
+    # DONE
     def initGL(self):
         glViewport(0, 0, self.width, self.height)
         glClearColor(1.0, 1.0, 1.0, 1.0)
         glMatrixMode(GL_PROJECTION)
         glMatrixMode(GL_MODELVIEW)
 
+    # DONE
     def initGLFW(self):
         glfw.make_context_current(self.window)
         glfw.set_key_callback(self.window, self.onKeyAction)
@@ -217,7 +224,7 @@ class RenderWindow:
     def run(self):
         glfw.set_time(0.0)
         t = 0.0
-        while not glfw.window_should_close(self.window) and not self.exitNow:
+        while not glfw.window_should_close(self.window) and not self._exit:
             # update everx x seconds
             currT = glfw.get_time()
             if currT - t > 1.0 / self.frame_rate:
@@ -237,15 +244,14 @@ class RenderWindow:
         glfw.terminate()
 
     def onClick(self, window, button, action, mods):
+        _pos = lambda x, y: x / y * 2 - 1
         if action == glfw.PRESS:
             if button == glfw.MOUSE_BUTTON_LEFT:
                 x, y = glfw.get_cursor_pos(window)
-                x = x / self.width * 2 - 1
-                y = - (y / self.height * 2 - 1)
+                x = _pos(x, self.width)
+                y = - (_pos(y, self.height))
 
-                self.scene.points.append(np.array([x, y]))
-                self.scene.increase(Scene.PARAM_POINTS)
-
+                self.scene.add_point(np.array([x, y]))
                 self.scene.calc_curve()
 
     def onKeyAction(self, window, key, scancode, action, mods):
@@ -254,16 +260,16 @@ class RenderWindow:
 
         if key == glfw.KEY_ESCAPE:
             if action == glfw.RELEASE:
-                self.exitNow = True
+                self._exit = True
             return
         elif key == glfw.KEY_LEFT_SHIFT or key == glfw.KEY_RIGHT_SHIFT:
-            self.shiftFlag = True if action == glfw.PRESS else False
+            self._shift = True if action == glfw.PRESS else False
             return
         elif key == glfw.KEY_M:
             if action == glfw.RELEASE:
                 return
             print "m"
-            if self.shiftFlag:
+            if self._shift:
                 self.scene.increase(Scene.PARAM_POINTS)
                 print "increase point count"
             else:
@@ -274,13 +280,16 @@ class RenderWindow:
                 if pointcount > 2:
                     self.scene.decrease(Scene.PARAM_POINTS)
                     print "decrease point count"
+
+                self.scene.render()
+
             return
         elif key == glfw.KEY_K:
             if action == glfw.RELEASE:
                 return
             print "k"
             # changing curve degree
-            if self.shiftFlag:
+            if self._shift:
                 self.scene.increase(Scene.PARAM_DEGREE)
                 print "increase degree"
             else:

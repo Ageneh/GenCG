@@ -31,7 +31,7 @@ class RenderWindow:
         self.initGLFW()
         self.initGL()
 
-        self.scene = Scene()
+        self.scene = Scene(self.width, self.height)
 
         self._shift = False
         self._exit = False
@@ -79,11 +79,15 @@ class RenderWindow:
         x, y = glfw.get_cursor_pos(window)
 
         if action == glfw.RELEASE:
+            x = _pos(x, self.width)
+            y = -_pos(y, self.height)
             if button == glfw.MOUSE_BUTTON_LEFT:
-                x = _pos(x, self.width)
-                y = -_pos(y, self.height)
-
                 self.scene.add_point([x, y])
+                return
+
+            if button == glfw.MOUSE_BUTTON_RIGHT:
+                self.scene.remove_point(x, y)
+                return
 
     # DONE
     def on_key(self, window, key, scancode, action, mods):

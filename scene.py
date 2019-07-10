@@ -40,11 +40,10 @@ class Scene:
 
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointer(2, GL_FLOAT, 0, myVbo)
-
-        glColor([0.0, 0.0, 0.0])
+        glColor([0.7, 0.7, 0.7])
         glPointSize(5.0)
-
         glDrawArrays(GL_POINTS, 0, len(self.points))
+
         if len(self.points) > 1:
             glDrawArrays(GL_LINE_STRIP, 0, len(self.points))
 
@@ -54,9 +53,7 @@ class Scene:
 
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointer(2, GL_FLOAT, 0, spline)
-
-            glColor([1.0, 0, 0])
-
+            glColor([.0, .0, 1.0])
             glDrawArrays(GL_LINE_STRIP, 0, len(self.spline_points))
             spline.unbind()
 

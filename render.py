@@ -3,7 +3,7 @@ import os
 import glfw
 from OpenGL.GL import *
 
-from splines.scene import Scene
+from scene import Scene
 
 
 class RenderWindow:

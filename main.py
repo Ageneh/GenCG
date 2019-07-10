@@ -1,4 +1,4 @@
-from splines.test_bspline import RenderWindow
+from render import RenderWindow
 
 
 def main():

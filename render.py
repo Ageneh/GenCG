@@ -49,6 +49,7 @@ class RenderWindow:
         glfw.make_context_current(self.window)
         glfw.set_key_callback(self.window, self.on_key)
         glfw.set_mouse_button_callback(self.window, self.on_click)
+        glfw.set_cursor_pos_callback(self.window, self.on_mouse_move)
 
     # DONE
     def run(self):
@@ -88,6 +89,14 @@ class RenderWindow:
             if button == glfw.MOUSE_BUTTON_RIGHT:
                 self.scene.remove_point(x, y)
                 return
+
+    def on_mouse_move(self, window, x, y):
+        _pos = lambda _x, _y: _x / _y * 2 - 1
+        x = _pos(x, self.width)
+        y = -_pos(y, self.height)
+
+        self.scene.check_hover(x, y)
+        return
 
     # DONE
     def on_key(self, window, key, scancode, action, mods):

@@ -32,6 +32,7 @@ class Scene:
         self.spline_points = []
         self.knot_vector = []
         self.width, self.height = w, h
+        self.hovered = []
         self.reset_errythang()
 
     # DONE
@@ -45,7 +46,7 @@ class Scene:
         glVertexPointer(2, GL_FLOAT, 0, myVbo)
         glLineWidth(1.)
         glColor([0.7, 0.7, 0.7])
-        glPointSize(5.0)
+        glPointSize(10.0)
         glDrawArrays(GL_POINTS, 0, len(self.points))
 
         if len(self.points) > 1:
@@ -61,6 +62,20 @@ class Scene:
             glColor([.0, .0, 1.0])
             glDrawArrays(GL_LINE_STRIP, 0, len(self.spline_points))
             spline.unbind()
+
+        if self.hovered:
+            idx = self.hovered[0]
+
+            if idx < len(self.points):
+                over = vbo.VBO(array([self.points[idx]], 'f'))
+                over.bind()
+                glEnableClientState(GL_VERTEX_ARRAY)
+                glVertexPointer(2, GL_FLOAT, 0, myVbo)
+                glLineWidth(1.)
+                glColor([1., .0, .0])
+                glPointSize(20.0)
+                glDrawArrays(GL_POINTS, 0, 1)
+                over.unbind()
 
         myVbo.unbind()
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -81,7 +96,8 @@ class Scene:
         limit_in_knot_vector = len(self.knot_vector) - degree
 
         for i in range(degree - 1, limit_in_knot_vector):
-            if self.knot_vector[i] == self.knot_vector[i + 1]:
+            print len(self.knot_vector), i, i + 1
+            if i + 1 == len(self.knot_vector or self.knot_vector[i] == self.knot_vector[i + 1]):
                 # avoid going past idx of last val (see calc_knot_vector)
                 continue
             for t in linspace(self.knot_vector[i], self.knot_vector[i + 1], self.get_pointcount()):
@@ -213,6 +229,17 @@ class Scene:
 
         return _points_in_range
 
+    def check_hover(self, x, y):
+        idx = self.point_in_region(x, y)
+
+        if not idx:
+            self.hovered = []
+            return
+
+        print idx
+        self.hovered = idx
+        return
+
     def _recalc_degree(self):
         max = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
         if self.get_degree() > len(self.points):
@@ -236,4 +263,5 @@ class Scene:
         self.points = []
         self.spline_points = []
         self.knot_vector = []
+        self.hovered = []
         print "values: ", self.values

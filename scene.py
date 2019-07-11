@@ -16,7 +16,7 @@ class Scene:
     def __init__(self, w, h):
         self.valueLimits = {
             Scene.PARAM_DEGREE: {
-                MIN: 3,
+                MIN: 1,
                 MAX: lambda: len(self.points),
             },
             Scene.PARAM_POINTS: {
@@ -245,8 +245,8 @@ class Scene:
 
     def _recalc_degree(self):
         max = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
-        # if self.get_degree() > len(self.points):
-        #     self.set_param(Scene.PARAM_DEGREE, max)
+        if self.get_degree() > len(self.points):
+            self.set_param(Scene.PARAM_DEGREE, max)
 
     # DONE
     def remove_point(self, x, y):
@@ -259,13 +259,18 @@ class Scene:
         points.remove(points[rm_point[0]])
         self.points = points
 
-        if self.get_degree() > len(points):
-            val = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
-            if len(points) < self.valueLimits[Scene.PARAM_DEGREE][MIN]:
-                val = self.valueLimits[Scene.PARAM_DEGREE][MIN]
-            self.set_param(Scene.PARAM_DEGREE, val)
+        print len(points), self.get_degree()
 
-        self._recalc_degree()
+        if len(points) < 3:
+            self.set_param(Scene.PARAM_DEGREE, 3)
+
+        # if self.get_degree() > len(points):
+        #     val = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
+        #     # if len(points) < self.valueLimits[Scene.PARAM_DEGREE][MIN]:
+        #     #     val = self.valueLimits[Scene.PARAM_DEGREE][MIN]
+        #     self.set_param(Scene.PARAM_DEGREE, val)
+
+        # self._recalc_degree()
         self.calc_curve()
 
     # DONE

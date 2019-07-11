@@ -83,7 +83,7 @@ class Scene:
         glFlush()
 
     # DONE
-    def calc_curve(self):
+    def calc_spline(self):
         if self.get_degree() > len(self.points):
             # hide spline/don't calculate spline while not enough points have been set
             return
@@ -167,7 +167,7 @@ class Scene:
             if self.get_param(param) >= self.valueLimits[param][MAX]():  # degree has to be at least 2
                 return
         self.values[param] += 1
-        self.calc_curve()
+        self.calc_spline()
         print("{} increased to: {}".format(param, str(self.values[param])))
 
     # DONE
@@ -180,7 +180,7 @@ class Scene:
             if self.get_param(param) <= self.valueLimits[param][MIN]:  # degree has to be at least 2
                 return
         self.values[param] -= 1
-        self.calc_curve()
+        self.calc_spline()
         print("{} decreased to: {}".format(param, str(self.values[param])))
 
     # DONE
@@ -200,7 +200,7 @@ class Scene:
         if param not in self.values.keys():
             return
         self.values[param] = val
-        self.calc_curve()
+        self.calc_spline()
 
     # DONE
     def add_point(self, point):
@@ -212,7 +212,7 @@ class Scene:
         # self.increase(Scene.PARAM_POINTS)           # #
         # # ========================================= # #
 
-        self.calc_curve()
+        self.calc_spline()
         print("point count: {}".format(str(len(self.points))))
         print("max degree: {}".format(str(self.valueLimits[Scene.PARAM_DEGREE][MAX]())))
 
@@ -264,14 +264,14 @@ class Scene:
         if len(points) < 3:
             self.set_param(Scene.PARAM_DEGREE, 3)
 
-        # if self.get_degree() > len(points):
-        #     val = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
-        #     # if len(points) < self.valueLimits[Scene.PARAM_DEGREE][MIN]:
-        #     #     val = self.valueLimits[Scene.PARAM_DEGREE][MIN]
-        #     self.set_param(Scene.PARAM_DEGREE, val)
+        elif self.get_degree() > len(points):
+            val = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
+            if len(points) < self.valueLimits[Scene.PARAM_DEGREE][MIN]:
+                val = self.valueLimits[Scene.PARAM_DEGREE][MIN]
+            self.set_param(Scene.PARAM_DEGREE, val)
 
         # self._recalc_degree()
-        self.calc_curve()
+        self.calc_spline()
 
     # DONE
     def reset_errythang(self):

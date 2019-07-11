@@ -5,15 +5,13 @@ from numpy import linspace, array
 MIN = "min"
 MAX = "max"
 
-RANGE = 10  # pixel range
-
 
 class Scene:
     PARAM_DEGREE = "degree"
     PARAM_POINTS = "pointCount"
 
     # DONE
-    def __init__(self, w, h):
+    def __init__(self):
         self.valueLimits = {
             Scene.PARAM_DEGREE: {
                 MIN: 1,
@@ -31,8 +29,6 @@ class Scene:
         self.points = []
         self.spline_points = []
         self.knot_vector = []
-        self.width, self.height = w, h
-        self.hovered = []
         self.reset_errythang()
 
     # DONE
@@ -44,9 +40,8 @@ class Scene:
 
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointer(2, GL_FLOAT, 0, myVbo)
-        glLineWidth(1.)
         glColor([0.7, 0.7, 0.7])
-        glPointSize(10.0)
+        glPointSize(5.0)
         glDrawArrays(GL_POINTS, 0, len(self.points))
 
         if len(self.points) > 1:
@@ -58,24 +53,9 @@ class Scene:
 
             glEnableClientState(GL_VERTEX_ARRAY)
             glVertexPointer(2, GL_FLOAT, 0, spline)
-            glLineWidth(6.)
             glColor([.0, .0, 1.0])
             glDrawArrays(GL_LINE_STRIP, 0, len(self.spline_points))
             spline.unbind()
-
-        if self.hovered:
-            idx = self.hovered[0]
-
-            if idx < len(self.points):
-                over = vbo.VBO(array([self.points[idx]], 'f'))
-                over.bind()
-                glEnableClientState(GL_VERTEX_ARRAY)
-                glVertexPointer(2, GL_FLOAT, 0, myVbo)
-                glLineWidth(1.)
-                glColor([1., .0, .0])
-                glPointSize(20.0)
-                glDrawArrays(GL_POINTS, 0, 1)
-                over.unbind()
 
         myVbo.unbind()
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -96,8 +76,7 @@ class Scene:
         limit_in_knot_vector = len(self.knot_vector) - degree
 
         for i in range(degree - 1, limit_in_knot_vector):
-            print len(self.knot_vector), i, i + 1
-            if i + 1 == len(self.knot_vector or self.knot_vector[i] == self.knot_vector[i + 1]):
+            if self.knot_vector[i] == self.knot_vector[i + 1]:
                 # avoid going past idx of last val (see calc_knot_vector)
                 continue
             for t in linspace(self.knot_vector[i], self.knot_vector[i + 1], self.get_pointcount()):
@@ -200,8 +179,8 @@ class Scene:
         self.calc_curve()
 
     # DONE
-    def add_point(self, point):
-        self.points.append(point)
+    def add_point(self, points):
+        self.points.append(points)
 
         # # ========================================= # #
         # # used to increase point count in point add # #
@@ -214,54 +193,8 @@ class Scene:
         print("max degree: {}".format(str(self.valueLimits[Scene.PARAM_DEGREE][MAX]())))
 
     # DONE
-    def point_in_region(self, x, y):
-        def in_range(val, start, end):
-            return start <= val <= end
-
-        _points_in_range = []
-        points = self.points
-        dist_x = RANGE / float(self.width)
-        dist_y = RANGE / float(self.height)
-
-        for idx, p in enumerate(points):
-            if in_range(p[0], x - dist_x, x + dist_x) and in_range(p[1], y - dist_y, y + dist_y):
-                _points_in_range.append(idx)
-
-        return _points_in_range
-
-    def check_hover(self, x, y):
-        idx = self.point_in_region(x, y)
-
-        if not idx:
-            self.hovered = []
-            return
-
-        print idx
-        self.hovered = idx
-        return
-
-    def _recalc_degree(self):
-        max = self.valueLimits[Scene.PARAM_DEGREE][MAX]()
-        if self.get_degree() > len(self.points):
-            self.set_param(Scene.PARAM_DEGREE, max)
-
-    # DONE
-    def remove_point(self, x, y):
-        points = self.points
-
-        rm_point = self.point_in_region(x, y)
-        if not rm_point:
-            return
-
-        points.remove(points[rm_point[0]])
-        self.points = points
-        self._recalc_degree()
-        self.calc_curve()
-
-    # DONE
     def reset_errythang(self):
         self.points = []
         self.spline_points = []
         self.knot_vector = []
-        self.hovered = []
         print "values: ", self.values
